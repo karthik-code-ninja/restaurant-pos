@@ -210,7 +210,7 @@
 
     function openEditModal(user) {
         document.getElementById('modalTitle').innerText = 'Edit Staff Member: ' + user.name;
-        document.getElementById('userForm').action = "{{ route('users.update', ['user' => ':id']) }}".replace(':id', user.id);
+        document.getElementById('userForm').action = "/users/" + user.id;
         document.getElementById('methodContainer').innerHTML = '@method("PUT")';
         document.getElementById('name').value = user.name;
         document.getElementById('email').value = user.email;
