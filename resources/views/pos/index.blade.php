@@ -47,7 +47,7 @@
                 <select id="selectedTableId" onchange="onTableSelected()" class="bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500">
                     <option value="">Select Table...</option>
                     @foreach($tables as $tbl)
-                    <option value="{{ $tbl->id }}" data-number="{{ $tbl->table_number }}" {{ ((isset($activeBill) && $activeBill->table_id == $tbl->id) || request('table_id') == $tbl->id) ? 'selected' : '' }}>
+                    <option value="{{ $tbl->id }}" data-number="{{ $tbl->table_number }}" {{ (isset($activeBill) && $activeBill->table_id == $tbl->id) ? 'selected' : '' }}>
                         {{ $tbl->table_number }} ({{ $tbl->status }})
                     </option>
                     @endforeach
@@ -426,12 +426,6 @@
             // Load initial active bill if passed from table or route
             if (INITIAL_ACTIVE_BILL) {
                 resumeBillData(INITIAL_ACTIVE_BILL);
-            } else {
-                const sel = document.getElementById('selectedTableId');
-                if (sel && sel.value) {
-                    currentTableId = sel.value;
-                    updateOrderTargetDisplay();
-                }
             }
         });
 
@@ -468,11 +462,10 @@
 
         function updateOrderTargetDisplay() {
             const display = document.getElementById('orderTargetDisplay');
-            if (!display) return;
             if (orderType === 'table') {
                 const sel = document.getElementById('selectedTableId');
-                const opt = (sel && sel.selectedIndex >= 0) ? sel.options[sel.selectedIndex] : null;
-                display.innerText = (currentTableId && opt && opt.value) ? `Table: ${opt.text}` : 'Table: None selected';
+                const opt = sel.options[sel.selectedIndex];
+                display.innerText = currentTableId ? `Table: ${opt.text}` : 'Table: None selected';
             } else {
                 display.innerText = 'Takeaway / Walk-in Counter';
             }
@@ -639,77 +632,14 @@
             triggerCalculation();
         }
 
-        async function clearCart(skipServerSync = false) {
-            if (!skipServerSync) {
-                if (cart.length === 0 && !activeBillId && !currentTableId) {
-                    return;
-                }
-
-                const confirmMsg = activeBillId
-                    ? `Clear order #${activeInvoiceNumber}? This will remove it from database and set table status to available.`
-                    : 'Are you sure you want to clear current order?';
-
-                if (!confirm(confirmMsg)) return;
-
-                if (activeBillId || currentTableId) {
-                    try {
-                        const res = await fetch(`{{ route('pos.clear') }}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': CSRF_TOKEN
-                            },
-                            body: JSON.stringify({
-                                bill_id: activeBillId,
-                                table_id: currentTableId
-                            })
-                        });
-                        const data = await res.json();
-                        if (data.success && data.table_id) {
-                            const sel = document.getElementById('selectedTableId');
-                            if (sel) {
-                                for (let i = 0; i < sel.options.length; i++) {
-                                    if (sel.options[i].value == data.table_id) {
-                                        const tblNum = sel.options[i].getAttribute('data-number') || data.table_number || '';
-                                        sel.options[i].text = `${tblNum} (available)`;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Error clearing bill in database:', err);
-                    }
-                }
-            }
-
+        function clearCart() {
+            if (cart.length > 0 && !confirm('Are you sure you want to clear current order?')) return;
             cart = [];
             activeBillId = null;
             activeInvoiceNumber = null;
             document.getElementById('activeBillIdDisplay').innerText = '';
-
-            const sel = document.getElementById('selectedTableId');
-            if (sel) {
-                sel.value = '';
-            }
-            currentTableId = null;
-            updateOrderTargetDisplay();
-
-            const custName = document.getElementById('custName');
-            if (custName) custName.value = '';
-            const custPhone = document.getElementById('custPhone');
-            if (custPhone) custPhone.value = '';
-            const discType = document.getElementById('discountType');
-            if (discType) discType.value = 'fixed';
-            const discVal = document.getElementById('discountValue');
-            if (discVal) discVal.value = '0';
-
             renderCart();
             triggerCalculation();
-
-            if (window.history && window.history.replaceState) {
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
         }
 
         function renderCart() {
@@ -869,7 +799,7 @@
                 const data = await res.json();
                 if (data.success) {
                     alert(data.message);
-                    clearCart(true);
+                    clearCart();
                 } else {
                     alert(data.message || 'Failed to save bill.');
                 }
@@ -980,7 +910,7 @@
                     // Open thermal print popup
                     window.open(data.print_url, '_blank', 'width=400,height=600');
                     alert(data.message);
-                    clearCart(true);
+                    clearCart();
                 } else {
                     alert(data.message || 'Payment processing failed.');
                 }
