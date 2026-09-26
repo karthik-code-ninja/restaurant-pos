@@ -289,7 +289,7 @@
 
     function openEditModal(food) {
         modalTitle.innerText = 'Edit Food Item: ' + food.name;
-        form.action = "/foods/" + food.id;
+        form.action = "{{ route('foods.update', ['food' => ':id']) }}".replace(':id', food.id);
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('foodCode').value = food.code;
         document.getElementById('foodName').value = food.name;

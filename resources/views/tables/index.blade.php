@@ -285,7 +285,7 @@
 
     function openEditModal(table) {
         modalTitle.innerText = 'Edit Table: ' + table.table_number;
-        form.action = "/tables/" + table.id;
+        form.action = "{{ route('tables.update', ['table' => ':id']) }}".replace(':id', table.id);
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('tblNumber').value = table.table_number;
         document.getElementById('tblName').value = table.name || '';
