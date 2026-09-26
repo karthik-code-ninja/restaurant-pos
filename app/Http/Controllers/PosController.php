@@ -582,14 +582,18 @@ class PosController extends Controller
             // 1. If tableId provided, clean up any active bills on that table
             if ($tableId) {
                 $tableBills = Bill::where('table_id', $tableId)
-                    ->whereIn('status', ['draft', 'held', 'pending'])
+                    ->whereNotIn('status', ['completed', 'cancelled'])
                     ->get();
 
                 foreach ($tableBills as $tBill) {
                     if (!$invoiceNum) {
                         $invoiceNum = $tBill->invoice_number;
                     }
-                    $this->inventoryService->reverseStockForBill($tBill, 'POS cart cleared by cashier');
+                    try {
+                        $this->inventoryService->reverseStockForBill($tBill, 'POS cart cleared by cashier');
+                    } catch (\Throwable $e) {
+                        Log::warning("Inventory reversal failed on clear: " . $e->getMessage());
+                    }
                     $itemIds = $tBill->items()->pluck('id');
                     if ($itemIds->isNotEmpty()) {
                         BillItemAddon::whereIn('bill_item_id', $itemIds)->delete();
@@ -611,7 +615,11 @@ class PosController extends Controller
                 $bill = Bill::find($billId);
                 if ($bill) {
                     $invoiceNum = $invoiceNum ?: $bill->invoice_number;
-                    $this->inventoryService->reverseStockForBill($bill, 'POS cart cleared by cashier');
+                    try {
+                        $this->inventoryService->reverseStockForBill($bill, 'POS cart cleared by cashier');
+                    } catch (\Throwable $e) {
+                        Log::warning("Inventory reversal failed on clear: " . $e->getMessage());
+                    }
 
                     if ($bill->table_id) {
                         RestaurantTable::where('id', $bill->table_id)->update(['status' => 'available']);
@@ -620,7 +628,7 @@ class PosController extends Controller
                         }
                     }
 
-                    if (in_array($bill->status, ['draft', 'held', 'pending'])) {
+                    if (!in_array($bill->status, ['completed', 'cancelled'])) {
                         $itemIds = $bill->items()->pluck('id');
                         if ($itemIds->isNotEmpty()) {
                             BillItemAddon::whereIn('bill_item_id', $itemIds)->delete();

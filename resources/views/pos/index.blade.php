@@ -655,15 +655,19 @@
         }
 
         async function clearCart(skipServerSync = false) {
+            const targetTableId = currentTableId 
+                || (document.getElementById('selectedTableId') ? document.getElementById('selectedTableId').value : null)
+                || new URLSearchParams(window.location.search).get('table_id');
+
             if (!skipServerSync) {
-                if (cart.length === 0 && !activeBillId && !currentTableId) {
+                if (cart.length === 0 && !activeBillId && !targetTableId) {
                     Toast.fire({ icon: 'info', title: 'Cart is already empty.' });
                     return;
                 }
 
                 const confirmMsg = activeBillId
                     ? `Clear order #${activeInvoiceNumber || ''}? This will remove it from the database and set table status to available.`
-                    : (currentTableId ? 'Clear table order and set table status to available?' : 'Are you sure you want to clear current order?');
+                    : (targetTableId ? 'Clear table order and set table status to available?' : 'Are you sure you want to clear current order?');
 
                 const confirmResult = await Swal.fire({
                     title: 'Clear Current Order?',
@@ -679,9 +683,15 @@
 
                 if (!confirmResult.isConfirmed) return;
 
-                if (activeBillId || currentTableId) {
+                if (activeBillId || targetTableId) {
                     try {
-                        const res = await fetch(`{{ route('pos.clear') }}`, {
+                        let clearUrl = `{{ route('pos.clear') }}`;
+                        const subfolder = window.location.pathname.replace(/\/pos.*$/, '');
+                        if (subfolder && !clearUrl.includes(subfolder)) {
+                            clearUrl = window.location.origin + subfolder + '/pos/clear-cart';
+                        }
+
+                        const res = await fetch(clearUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -690,27 +700,34 @@
                             },
                             body: JSON.stringify({
                                 bill_id: activeBillId,
-                                table_id: currentTableId
+                                table_id: targetTableId
                             })
                         });
                         const data = await res.json();
-                        if (data.success && data.table_id) {
+                        if (data.success) {
+                            const freedTblId = data.table_id || targetTableId;
                             const sel = document.getElementById('selectedTableId');
-                            if (sel) {
+                            if (sel && freedTblId) {
                                 for (let i = 0; i < sel.options.length; i++) {
-                                    if (sel.options[i].value == data.table_id) {
+                                    if (sel.options[i].value == freedTblId) {
                                         const tblNum = sel.options[i].getAttribute('data-number') || data.table_number || '';
                                         sel.options[i].text = `${tblNum} (available)`;
                                         break;
                                     }
                                 }
                             }
-                        }
 
-                        Toast.fire({
-                            icon: 'success',
-                            title: data.message || 'Order cleared and table available.'
-                        });
+                            Toast.fire({
+                                icon: 'success',
+                                title: data.message || 'Order cleared and table available.'
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to clear order from server.'
+                            });
+                        }
                     } catch (err) {
                         console.error('Error clearing bill in database:', err);
                         Swal.fire({
