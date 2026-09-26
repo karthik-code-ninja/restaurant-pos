@@ -214,7 +214,7 @@
 
     function openEditModal(combo) {
         modalTitle.innerText = 'Edit Combo: ' + combo.name;
-        form.action = "{{ route('combos.index') }}/" + combo.id;
+        form.action = "/combos/" + combo.id;
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('comboCode').value = combo.code;
         document.getElementById('comboName').value = combo.name;

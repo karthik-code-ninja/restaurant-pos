@@ -271,7 +271,7 @@
 
     function openEditModal(item) {
         modalTitle.innerText = 'Edit Material: ' + item.name;
-        form.action = "{{ route('inventory.index') }}/" + item.id;
+        form.action = "/inventory/" + item.id;
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         openingGroup.classList.add('hidden'); // Opening stock cannot be altered directly after creation
         document.getElementById('itemCode').value = item.code;
@@ -289,7 +289,7 @@
     function openAdjustModal(item) {
         document.getElementById('adjustItemName').innerText = `${item.name} (${item.code})`;
         document.getElementById('adjustCurrentStock').innerText = `${parseFloat(item.current_stock)} ${item.unit}`;
-        document.getElementById('adjustForm').action = "{{ route('inventory.index') }}/" + item.id + "/adjust";
+        document.getElementById('adjustForm').action = `/inventory/${item.id}/adjust`;
         document.getElementById('adjustModal').classList.remove('hidden');
     }
 </script>
