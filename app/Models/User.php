@@ -72,6 +72,9 @@ class User extends Authenticatable
         }
 
         if (!$this->role) {
+            if ($this->id === 1 || str_contains(strtolower($this->email ?? ''), 'admin')) {
+                return is_array($roles) ? in_array('admin', $roles) : $roles === 'admin';
+            }
             return false;
         }
 
@@ -84,21 +87,28 @@ class User extends Authenticatable
 
     public function hasPermission(string $permissionSlug): bool
     {
-        if ($this->hasRole('admin')) {
+        // 1. Super Admin (Admin role, user ID 1, or admin email) has all permissions
+        if ($this->hasRole('admin') || $this->id === 1 || str_contains(strtolower($this->email ?? ''), 'admin')) {
+            return true;
+        }
+
+        // 2. Dashboard overview is accessible to all authenticated restaurant staff
+        if ($permissionSlug === 'dashboard.view') {
             return true;
         }
 
         if (!$this->relationLoaded('role')) {
             $this->load('role.permissions');
-        } elseif (!$this->role->relationLoaded('permissions')) {
+        } elseif ($this->role && !$this->role->relationLoaded('permissions')) {
             $this->role->load('permissions');
         }
 
         if (!$this->role) {
-            return false;
+            // Default permissions for users without an explicit role assigned
+            return in_array($permissionSlug, ['dashboard.view', 'pos.billing', 'table.view']);
         }
 
-        return $this->role->permissions->contains('slug', $permissionSlug);
+        return $this->role->permissions ? $this->role->permissions->contains('slug', $permissionSlug) : false;
     }
 
     public function isAdmin(): bool

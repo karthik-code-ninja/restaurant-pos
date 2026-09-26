@@ -15,7 +15,7 @@ class AuthController extends Controller
     public function showLogin(): View|RedirectResponse
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard');
+            return $this->authenticatedRedirect(Auth::user());
         }
 
         return view('auth.login');
@@ -62,12 +62,7 @@ class AuthController extends Controller
                 description: "User {$user->name} ({$user->email}) logged in successfully"
             );
 
-            // Redirect based on role or default to pos/dashboard
-            if ($user->hasRole('cashier')) {
-                return redirect()->intended(route('pos.index'));
-            }
-
-            return redirect()->intended(route('dashboard'));
+            return $this->authenticatedRedirect($user);
         }
 
         return back()->withErrors([
@@ -101,5 +96,18 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')->with('success', 'You have been logged out successfully.');
+    }
+
+    protected function authenticatedRedirect(User $user): RedirectResponse
+    {
+        if ($user->hasRole('cashier')) {
+            return redirect()->intended(route('pos.index'));
+        }
+
+        if ($user->hasPermission('dashboard.view')) {
+            return redirect()->intended(route('dashboard'));
+        }
+
+        return redirect()->intended(route('pos.index'));
     }
 }

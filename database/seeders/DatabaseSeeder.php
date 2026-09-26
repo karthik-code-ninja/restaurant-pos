@@ -94,7 +94,7 @@ class DatabaseSeeder extends Seeder
         $cashierRole->permissions()->sync($cashierPerms);
 
         $staffPerms = Permission::whereIn('slug', [
-            'table.view', 'pos.billing'
+            'dashboard.view', 'table.view', 'pos.billing'
         ])->pluck('id');
         $staffRole->permissions()->sync($staffPerms);
 

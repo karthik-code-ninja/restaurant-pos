@@ -19,9 +19,22 @@ use App\Http\Controllers\TaxController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Guest Routes
 Route::get('/', function () {
-    return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
+    if (!auth()->check()) {
+        return redirect()->route('login');
+    }
+
+    $user = auth()->user();
+
+    if ($user->hasRole('cashier')) {
+        return redirect()->route('pos.index');
+    }
+
+    if ($user->hasPermission('dashboard.view')) {
+        return redirect()->route('dashboard');
+    }
+
+    return redirect()->route('pos.index');
 });
 
 Route::middleware('guest')->group(function () {
@@ -153,6 +166,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/stock', [ReportController::class, 'stockReport'])->name('stock');
         Route::get('/cashier-sales', [ReportController::class, 'cashierSales'])->name('cashier');
         Route::get('/day-closing', [ReportController::class, 'dayClosingReport'])->name('dayclosing');
+        Route::get('/day-closing-report', [ReportController::class, 'dayClosingReport'])->name('day-closing');
     });
 
     // 11. User & Staff Management
@@ -161,7 +175,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [UserController::class, 'store'])->name('store');
         Route::put('/{user}', [UserController::class, 'update'])->name('update');
         Route::patch('/{user}/status', [UserController::class, 'toggleStatus'])->name('status');
+        Route::patch('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
         Route::get('/login-history', [UserController::class, 'loginHistory'])->name('login_history');
+        Route::get('/login-history-list', [UserController::class, 'loginHistory'])->name('login-history');
     });
 
     // 12. Settings
@@ -174,6 +190,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('backup')->name('backup.')->middleware('permission:backup.manage')->group(function () {
         Route::get('/', [BackupController::class, 'index'])->name('index');
         Route::get('/download', [BackupController::class, 'download'])->name('download');
+        Route::get('/audit-logs-view', [BackupController::class, 'auditLogs'])->name('audit-logs');
     });
 
     Route::get('/audit-logs', [BackupController::class, 'auditLogs'])
