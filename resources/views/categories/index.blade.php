@@ -164,7 +164,7 @@
 
     function openEditModal(category) {
         modalTitle.innerText = 'Edit Category: ' + category.name;
-        form.action = "/categories/" + category.id;
+        form.action = "{{ route('categories.index') }}/" + category.id;
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('catName').value = category.name;
         document.getElementById('catSort').value = category.sort_order;
