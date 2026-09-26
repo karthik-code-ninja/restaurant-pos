@@ -568,6 +568,98 @@ class PosController extends Controller
     }
 
     /**
+     * Clear Cart / Cancel active order and release table.
+     */
+    public function clearCartOrder(Request $request): JsonResponse
+    {
+        $billId = $request->input('bill_id');
+        $tableId = $request->input('table_id');
+
+        return DB::transaction(function () use ($billId, $tableId) {
+            $releasedTable = null;
+            $invoiceNum = null;
+
+            // 1. If tableId provided, clean up any active bills on that table
+            if ($tableId) {
+                $tableBills = Bill::where('table_id', $tableId)
+                    ->whereIn('status', ['draft', 'held', 'pending'])
+                    ->get();
+
+                foreach ($tableBills as $tBill) {
+                    if (!$invoiceNum) {
+                        $invoiceNum = $tBill->invoice_number;
+                    }
+                    $this->inventoryService->reverseStockForBill($tBill, 'POS cart cleared by cashier');
+                    $itemIds = $tBill->items()->pluck('id');
+                    if ($itemIds->isNotEmpty()) {
+                        BillItemAddon::whereIn('bill_item_id', $itemIds)->delete();
+                        $tBill->items()->delete();
+                    }
+                    $tBill->payments()->delete();
+                    $tBill->forceDelete();
+                }
+
+                $table = RestaurantTable::find($tableId);
+                if ($table) {
+                    $table->update(['status' => 'available']);
+                    $releasedTable = $table;
+                }
+            }
+
+            // 2. If specific billId provided and not already deleted
+            if ($billId) {
+                $bill = Bill::find($billId);
+                if ($bill) {
+                    $invoiceNum = $invoiceNum ?: $bill->invoice_number;
+                    $this->inventoryService->reverseStockForBill($bill, 'POS cart cleared by cashier');
+
+                    if ($bill->table_id) {
+                        RestaurantTable::where('id', $bill->table_id)->update(['status' => 'available']);
+                        if (!$releasedTable) {
+                            $releasedTable = RestaurantTable::find($bill->table_id);
+                        }
+                    }
+
+                    if (in_array($bill->status, ['draft', 'held', 'pending'])) {
+                        $itemIds = $bill->items()->pluck('id');
+                        if ($itemIds->isNotEmpty()) {
+                            BillItemAddon::whereIn('bill_item_id', $itemIds)->delete();
+                            $bill->items()->delete();
+                        }
+                        $bill->payments()->delete();
+                        $bill->forceDelete();
+                    } else {
+                        $bill->update([
+                            'status' => 'cancelled',
+                            'cancellation_reason' => 'Cart cleared by cashier',
+                            'cancelled_by' => Auth::id(),
+                            'cancelled_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            if ($invoiceNum) {
+                AuditLog::log(
+                    action: 'bill_cleared',
+                    module: 'pos',
+                    referenceId: (string) ($billId ?: $invoiceNum),
+                    description: "Order #{$invoiceNum} cleared and removed from active POS by " . (Auth::user()?->name ?? 'Cashier')
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $invoiceNum 
+                    ? "Order #{$invoiceNum} cleared from database and table released." 
+                    : "Cart cleared and table set to available.",
+                'table_id' => $tableId,
+                'table_number' => $releasedTable ? $releasedTable->table_number : null,
+            ]);
+        });
+    }
+
+    /**
      * Split Bill into separate bill.
      */
     public function splitBill(Request $request, Bill $bill): JsonResponse
