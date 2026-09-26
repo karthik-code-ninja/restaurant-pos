@@ -728,7 +728,8 @@
             const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
 
             try {
-                const res = await fetch(`{{ route('pos.calculate') }}`, {
+                const res = await fetch(
+                    `{{ route('pos.calculate') }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -789,7 +790,8 @@
             };
 
             try {
-                const res = await fetch(`{{ route('pos.save') }}`, {
+                const res = await fetch(
+                    `{{ route('pos.save') }}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
                     body: JSON.stringify(payload)
@@ -896,7 +898,8 @@
             };
 
             try {
-                const res = await fetch(`{{ route('pos.pay') }}`, {
+                const res = await fetch(
+                    `{{ route('pos.pay') }}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
                     body: JSON.stringify(payload)
@@ -955,7 +958,9 @@
             list.innerHTML = '<p class="text-center py-6 text-xs text-slate-400">Loading held bills...</p>';
 
             try {
-                const res = await fetch(`{{ route('pos.held') }}`);
+                const res = await fetch(
+                    `{{ route('pos.held') }}`
+                );
                 const data = await res.json();
                 if (data.bills.length === 0) {
                     list.innerHTML = '<p class="text-center py-8 text-xs font-semibold text-slate-500">No active held bills.</p>';
@@ -1012,7 +1017,9 @@
             list.innerHTML = '<p class="text-center py-6 text-xs text-slate-400">Loading drafts...</p>';
 
             try {
-                const res = await fetch(`{{ route('pos.drafts') }}`);
+                const res = await fetch(
+                    `{{ route('pos.drafts') }}`
+                );
                 const data = await res.json();
                 if (data.bills.length === 0) {
                     list.innerHTML = '<p class="text-center py-8 text-xs font-semibold text-slate-500">No saved draft bills.</p>';
