@@ -481,7 +481,9 @@
             });
 
             try {
-                const res = await fetch(`/pos/search?${params.toString()}`);
+                const res = await fetch(
+                    `{{ route('pos.search') }}?${params.toString()}`
+                );
                 const data = await res.json();
                 if (data.success) {
                     renderFoodsGrid(data.foods, data.combos);
@@ -726,7 +728,7 @@
             const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
 
             try {
-                const res = await fetch('/pos/calculate', {
+                const res = await fetch(`{{ route('pos.calculate') }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -787,7 +789,7 @@
             };
 
             try {
-                const res = await fetch('/pos/save', {
+                const res = await fetch(`{{ route('pos.save') }}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
                     body: JSON.stringify(payload)
@@ -894,7 +896,7 @@
             };
 
             try {
-                const res = await fetch('/pos/pay', {
+                const res = await fetch(`{{ route('pos.pay') }}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
                     body: JSON.stringify(payload)
@@ -953,7 +955,7 @@
             list.innerHTML = '<p class="text-center py-6 text-xs text-slate-400">Loading held bills...</p>';
 
             try {
-                const res = await fetch('/pos/held-bills');
+                const res = await fetch(`{{ route('pos.held') }}`);
                 const data = await res.json();
                 if (data.bills.length === 0) {
                     list.innerHTML = '<p class="text-center py-8 text-xs font-semibold text-slate-500">No active held bills.</p>';
@@ -993,7 +995,8 @@
         async function resumeHeldBill(billId) {
             closeHeldBillsModal();
             try {
-                const res = await fetch(`/pos/bill/${billId}/resume`);
+                const resumeUrl = `{{ route('pos.resume', ['bill' => ':id']) }}`.replace(':id', billId);
+                const res = await fetch(resumeUrl);
                 const data = await res.json();
                 if (data.success) {
                     resumeBillData(data.bill);
@@ -1009,7 +1012,7 @@
             list.innerHTML = '<p class="text-center py-6 text-xs text-slate-400">Loading drafts...</p>';
 
             try {
-                const res = await fetch('/pos/draft-bills');
+                const res = await fetch(`{{ route('pos.drafts') }}`);
                 const data = await res.json();
                 if (data.bills.length === 0) {
                     list.innerHTML = '<p class="text-center py-8 text-xs font-semibold text-slate-500">No saved draft bills.</p>';
@@ -1048,7 +1051,8 @@
         async function resumeDraftBill(billId) {
             closeDraftsModal();
             try {
-                const res = await fetch(`/pos/bill/${billId}/resume`);
+                const resumeUrl = `{{ route('pos.resume', ['bill' => ':id']) }}`.replace(':id', billId);
+                const res = await fetch(resumeUrl);
                 const data = await res.json();
                 if (data.success) {
                     resumeBillData(data.bill);
