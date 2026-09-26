@@ -74,7 +74,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('categories')->name('categories.')->middleware('permission:food.view')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
         Route::post('/', [CategoryController::class, 'store'])->middleware('permission:food.create')->name('store');
-        Route::match(['put', 'post'], '/{category}', [CategoryController::class, 'update'])->middleware('permission:food.edit')->name('update');
+        Route::put('/{category}', [CategoryController::class, 'update'])->middleware('permission:food.edit')->name('update');
         Route::delete('/{category}', [CategoryController::class, 'destroy'])->middleware('permission:food.delete')->name('destroy');
         Route::patch('/{category}/status', [CategoryController::class, 'toggleStatus'])->middleware('permission:food.edit')->name('status');
     });
@@ -83,7 +83,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('foods')->name('foods.')->middleware('permission:food.view')->group(function () {
         Route::get('/', [FoodController::class, 'index'])->name('index');
         Route::post('/', [FoodController::class, 'store'])->middleware('permission:food.create')->name('store');
-        Route::match(['put', 'post'], '/{food}', [FoodController::class, 'update'])->middleware('permission:food.edit')->name('update');
+        Route::put('/{food}', [FoodController::class, 'update'])->middleware('permission:food.edit')->name('update');
         Route::delete('/{food}', [FoodController::class, 'destroy'])->middleware('permission:food.delete')->name('destroy');
         Route::patch('/{food}/status', [FoodController::class, 'toggleStatus'])->middleware('permission:food.edit')->name('status');
     });
@@ -92,7 +92,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('addons')->name('addons.')->middleware('permission:food.view')->group(function () {
         Route::get('/', [AddOnController::class, 'index'])->name('index');
         Route::post('/', [AddOnController::class, 'store'])->middleware('permission:food.create')->name('store');
-        Route::match(['put', 'post'], '/{addon}', [AddOnController::class, 'update'])->middleware('permission:food.edit')->name('update');
+        Route::put('/{addon}', [AddOnController::class, 'update'])->middleware('permission:food.edit')->name('update');
         Route::delete('/{addon}', [AddOnController::class, 'destroy'])->middleware('permission:food.delete')->name('destroy');
         Route::patch('/{addon}/status', [AddOnController::class, 'toggleStatus'])->middleware('permission:food.edit')->name('status');
     });
@@ -101,7 +101,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('combos')->name('combos.')->middleware('permission:food.view')->group(function () {
         Route::get('/', [ComboController::class, 'index'])->name('index');
         Route::post('/', [ComboController::class, 'store'])->middleware('permission:food.create')->name('store');
-        Route::match(['put', 'post'], '/{combo}', [ComboController::class, 'update'])->middleware('permission:food.edit')->name('update');
+        Route::put('/{combo}', [ComboController::class, 'update'])->middleware('permission:food.edit')->name('update');
         Route::delete('/{combo}', [ComboController::class, 'destroy'])->middleware('permission:food.delete')->name('destroy');
         Route::patch('/{combo}/status', [ComboController::class, 'toggleStatus'])->middleware('permission:food.edit')->name('status');
     });
@@ -110,7 +110,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tables')->name('tables.')->middleware('permission:table.view')->group(function () {
         Route::get('/', [TableController::class, 'index'])->name('index');
         Route::post('/', [TableController::class, 'store'])->middleware('permission:table.manage')->name('store');
-        Route::match(['put', 'post'], '/{table}', [TableController::class, 'update'])->middleware('permission:table.manage')->name('update');
+        Route::put('/{table}', [TableController::class, 'update'])->middleware('permission:table.manage')->name('update');
         Route::delete('/{table}', [TableController::class, 'destroy'])->middleware('permission:table.manage')->name('destroy');
         Route::patch('/{table}/status', [TableController::class, 'updateStatus'])->middleware('permission:table.manage')->name('status');
         Route::post('/transfer', [TableController::class, 'transfer'])->middleware('permission:table.manage')->name('transfer');
@@ -127,7 +127,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('inventory')->name('inventory.')->middleware('permission:inventory.view')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('index');
         Route::post('/', [InventoryController::class, 'store'])->middleware('permission:inventory.manage')->name('store');
-        Route::match(['put', 'post'], '/{item}', [InventoryController::class, 'update'])->middleware('permission:inventory.manage')->name('update');
+        Route::put('/{item}', [InventoryController::class, 'update'])->middleware('permission:inventory.manage')->name('update');
         Route::delete('/{item}', [InventoryController::class, 'destroy'])->middleware('permission:inventory.manage')->name('destroy');
         Route::post('/{item}/adjust', [InventoryController::class, 'adjust'])->middleware('permission:inventory.manage')->name('adjust');
         Route::get('/{item}/history', [InventoryController::class, 'history'])->name('history');
@@ -137,7 +137,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('expenses')->name('expenses.')->middleware('permission:expense.view')->group(function () {
         Route::get('/', [ExpenseController::class, 'index'])->name('index');
         Route::post('/', [ExpenseController::class, 'store'])->middleware('permission:expense.manage')->name('store');
-        Route::match(['put', 'post'], '/{expense}', [ExpenseController::class, 'update'])->middleware('permission:expense.manage')->name('update');
+        Route::put('/{expense}', [ExpenseController::class, 'update'])->middleware('permission:expense.manage')->name('update');
         Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->middleware('permission:expense.manage')->name('destroy');
         Route::post('/categories', [ExpenseController::class, 'storeCategory'])->middleware('permission:expense.manage')->name('category.store');
         Route::delete('/categories/{category}', [ExpenseController::class, 'destroyCategory'])->middleware('permission:expense.manage')->name('category.destroy');
@@ -173,7 +173,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('users')->name('users.')->middleware('permission:users.manage')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::post('/', [UserController::class, 'store'])->name('store');
-        Route::match(['put', 'post'], '/{user}', [UserController::class, 'update'])->name('update');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
         Route::patch('/{user}/status', [UserController::class, 'toggleStatus'])->name('status');
         Route::patch('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
         Route::get('/login-history', [UserController::class, 'loginHistory'])->name('login_history');
