@@ -56,15 +56,33 @@
                 </select>
             </div>
 
-            <!-- Waiter Selector -->
+            <!-- Waiter / Staff Selector -->
+            @php
+                $currentUser = auth()->user();
+                $isAdmin = $currentUser && ($currentUser->hasRole(['admin', 'manager']) || $currentUser->id === 1);
+                $initialWaiterId = null;
+                if (isset($activeBill) && $activeBill->waiter_id) {
+                    $initialWaiterId = $activeBill->waiter_id;
+                } elseif (!$isAdmin && $currentUser) {
+                    $initialWaiterId = $currentUser->id;
+                }
+            @endphp
             <div id="waiterSelectWrapper" class="flex items-center">
-                <select id="selectedWaiterId" onchange="onWaiterSelected()" class="bg-slate-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[125px] sm:max-w-none">
-                    <option value="">Select Waiter...</option>
-                    @foreach($waiters as $w)
-                    <option value="{{ $w->id }}" data-name="{{ $w->name }}" {{ (isset($activeBill) && $activeBill->waiter_id == $w->id) ? 'selected' : '' }}>
-                        {{ $w->name }}
-                    </option>
-                    @endforeach
+                <select id="selectedWaiterId" onchange="onWaiterSelected()" class="bg-slate-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[145px] sm:max-w-none">
+                    @if($isAdmin)
+                        <option value="">Select Waiter...</option>
+                        @foreach($waiters as $w)
+                        <option value="{{ $w->id }}" data-name="{{ $w->name }}" {{ $initialWaiterId == $w->id ? 'selected' : '' }}>
+                            {{ $w->name }} ({{ $w->role?->name ?? 'Staff' }})
+                        </option>
+                        @endforeach
+                    @else
+                        @foreach($waiters as $w)
+                        <option value="{{ $w->id }}" data-name="{{ $w->name }}" {{ ($initialWaiterId == $w->id || $w->id == $currentUser->id) ? 'selected' : '' }}>
+                            {{ $w->name }}{{ $w->id == $currentUser->id ? ' (You)' : '' }}
+                        </option>
+                        @endforeach
+                    @endif
                 </select>
             </div>
         </div>
@@ -542,6 +560,9 @@
         let vegFilterOnly = false;
         let currentActiveItemCartIndex = null;
         let selectedPaymentMethod = 'cash';
+        const LOGGED_USER_IS_ADMIN = {{ $isAdmin ? 'true' : 'false' }};
+        const LOGGED_STAFF_ID = {{ (!$isAdmin && $currentUser) ? $currentUser->id : 'null' }};
+        const LOGGED_STAFF_NAME = "{{ (!$isAdmin && $currentUser) ? addslashes($currentUser->name) : '' }}";
 
         // SweetAlert2 Toast & Alert Configuration
         const Toast = Swal.mixin({
@@ -559,11 +580,15 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchFoods();
 
-            // Initialize waiter if selected in dropdown
+            // Initialize waiter if selected in dropdown or auto-select staff
             const waiterSel = document.getElementById('selectedWaiterId');
             if (waiterSel && waiterSel.value) {
                 currentWaiterId = parseInt(waiterSel.value);
                 currentWaiterName = waiterSel.options[waiterSel.selectedIndex].getAttribute('data-name') || waiterSel.options[waiterSel.selectedIndex].text.trim();
+            } else if (LOGGED_STAFF_ID) {
+                currentWaiterId = LOGGED_STAFF_ID;
+                currentWaiterName = LOGGED_STAFF_NAME;
+                if (waiterSel) waiterSel.value = LOGGED_STAFF_ID;
             }
 
             // Load initial active bill if passed from table or route
@@ -797,6 +822,7 @@
                     addons: []
                 });
             }
+
             renderCart();
             triggerCalculation();
         }
@@ -806,12 +832,14 @@
             if (cart[index].quantity <= 0) {
                 cart.splice(index, 1);
             }
+
             renderCart();
             triggerCalculation();
         }
 
         function removeCartItem(index) {
             cart.splice(index, 1);
+
             renderCart();
             triggerCalculation();
         }
@@ -1609,6 +1637,11 @@
                 if (waiterSel) waiterSel.value = bill.waiter_id;
             } else if (bill.waiter_name) {
                 currentWaiterName = bill.waiter_name;
+            } else if (LOGGED_STAFF_ID) {
+                currentWaiterId = LOGGED_STAFF_ID;
+                currentWaiterName = LOGGED_STAFF_NAME;
+                const waiterSel = document.getElementById('selectedWaiterId');
+                if (waiterSel) waiterSel.value = LOGGED_STAFF_ID;
             }
 
             document.getElementById('custName').value = bill.customer_name || '';
