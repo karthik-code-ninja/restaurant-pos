@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Receipt #{{ $receiptData['bill']['invoice_number'] }}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -173,6 +174,11 @@
                 <td class="text-right">Counter</td>
                 @endif
             </tr>
+            @if(!empty($receiptData['bill']['waiter']))
+            <tr>
+                <td colspan="2"><span class="font-bold">Waiter:</span> {{ $receiptData['bill']['waiter'] }}</td>
+            </tr>
+            @endif
             @if(!empty($receiptData['bill']['customer_name']))
             <tr>
                 <td colspan="2">Customer: {{ $receiptData['bill']['customer_name'] }}</td>
@@ -197,6 +203,9 @@
                 <tr>
                     <td class="text-left">
                         <span class="font-bold">{{ $item['name'] }}</span>
+                        @if(!empty($item['hsn_code']))
+                        <div style="font-size: 9px; font-family: monospace; color: #333;">HSN: {{ $item['hsn_code'] }}</div>
+                        @endif
                         @if(!empty($item['addons']))
                             @foreach($item['addons'] as $addon)
                             <div style="font-size: 10px; padding-left: 6px;">+ {{ $addon['name'] }} ({{ $receiptData['bill']['currency'] }}{{ number_format($addon['price'], 2) }})</div>
@@ -278,6 +287,33 @@
         <div class="divider"></div>
         @endif
 
+        <!-- QR Code for Payment -->
+        @if(!empty($receiptData['qr']['show_qr']))
+        <div class="divider"></div>
+        <div class="text-center" style="margin: 10px 0;">
+            @if($receiptData['qr']['qr_type'] === 'uploaded_image' && !empty($receiptData['qr']['image']))
+                <img src="{{ asset('storage/' . $receiptData['qr']['image']) }}" style="width: 125px; height: 125px; margin: 0 auto; display: block; border: 1px solid #ddd; padding: 2px;" alt="UPI QR">
+                <div class="font-bold uppercase" style="font-size: 11px; margin-top: 4px;">SCAN TO PAY VIA UPI</div>
+                @if(!empty($receiptData['qr']['upi_id']))
+                <div style="font-size: 10px; font-family: monospace; font-weight: bold;">{{ $receiptData['qr']['upi_id'] }}</div>
+                @endif
+            @elseif(!empty($receiptData['qr']['upi_uri']))
+                <!-- Dynamic UPI QR with Bill Amount -->
+                <div id="receiptQrCode" style="display: flex; justify-content: center; margin: 0 auto;"></div>
+                <div class="font-bold uppercase" style="font-size: 11px; margin-top: 4px;">
+                    SCAN & PAY {{ $receiptData['bill']['currency'] }}{{ number_format($receiptData['bill']['grand_total'], 2) }}
+                </div>
+                <div style="font-size: 9px; color: #444;">Scan with GPay, PhonePe, Paytm, BHIM</div>
+                @if(!empty($receiptData['qr']['upi_id']))
+                <div style="font-size: 9px; font-family: monospace; color: #222;">UPI: {{ $receiptData['qr']['upi_id'] }}</div>
+                @endif
+            @elseif(!empty($receiptData['qr']['image']))
+                <img src="{{ asset('storage/' . $receiptData['qr']['image']) }}" style="width: 125px; height: 125px; margin: 0 auto; display: block; border: 1px solid #ddd; padding: 2px;" alt="UPI QR">
+                <div class="font-bold uppercase" style="font-size: 11px; margin-top: 4px;">SCAN TO PAY VIA UPI</div>
+            @endif
+        </div>
+        @endif
+
         <!-- Footer -->
         <div class="text-center" style="margin-top: 8px;">
             @if(!empty($receiptData['receipt']['footer']))
@@ -288,6 +324,32 @@
     </div>
 
     <script>
+        @if(!empty($receiptData['qr']['show_qr']) && !empty($receiptData['qr']['upi_uri']) && $receiptData['qr']['qr_type'] !== 'uploaded_image')
+        try {
+            const qrTarget = document.getElementById("receiptQrCode");
+            const upiText = {!! json_encode($receiptData['qr']['upi_uri']) !!};
+            if (qrTarget && typeof QRCode !== 'undefined') {
+                new QRCode(qrTarget, {
+                    text: upiText,
+                    width: 120,
+                    height: 120,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.M
+                });
+            } else if (qrTarget) {
+                const img = document.createElement('img');
+                img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(upiText);
+                img.style.width = '120px';
+                img.style.height = '120px';
+                img.style.margin = '0 auto';
+                qrTarget.appendChild(img);
+            }
+        } catch(e) {
+            console.error('QR code generation error:', e);
+        }
+        @endif
+
         // Auto print upon opening if printer configured
         window.addEventListener('load', () => {
             // setTimeout(() => window.print(), 300);

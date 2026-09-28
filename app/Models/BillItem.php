@@ -16,9 +16,11 @@ class BillItem extends Model
         'item_type', // food, combo
         'item_id',
         'food_code',
+        'hsn_code',
         'item_name',
         'unit_price',
         'quantity',
+        'kot_printed_qty',
         'subtotal',
         'tax_rate',
         'tax_amount',
@@ -34,6 +36,7 @@ class BillItem extends Model
         return [
             'unit_price' => 'decimal:2',
             'quantity' => 'decimal:2',
+            'kot_printed_qty' => 'decimal:3',
             'subtotal' => 'decimal:2',
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',

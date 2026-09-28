@@ -52,6 +52,7 @@ class FoodController extends Controller
         $validated = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'code' => ['required', 'string', 'max:50', 'unique:foods,code'],
+            'hsn_code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:0'],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -100,6 +101,7 @@ class FoodController extends Controller
         $validated = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'code' => ['required', 'string', 'max:50', Rule::unique('foods', 'code')->ignore($food->id)],
+            'hsn_code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:0'],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],

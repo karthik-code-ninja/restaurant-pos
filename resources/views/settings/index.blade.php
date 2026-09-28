@@ -147,7 +147,58 @@
         </div>
     </div>
 
-    <!-- 4. Tax & GST Rules -->
+    <!-- 4. UPI Payment & Bill Print QR Code -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-3 flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center font-bold text-sm">
+                <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">UPI Payment & Bill Print QR Code</h3>
+                <p class="text-[11px] text-slate-400">Configure UPI QR code to print at the end of the customer receipt with auto bill amount</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">UPI ID (VPA) for Direct Customer Payments</label>
+                <input type="text" name="upi_id" value="{{ old('upi_id', $settings['upi_id'] ?? '') }}" placeholder="e.g. 9876543210@paytm or merchant@okhdfcbank" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-slate-900">
+                <p class="text-[10px] text-slate-400 mt-1">Generates dynamic UPI QR code so scanning reads the exact bill amount</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">UPI Payee / Business Name</label>
+                <input type="text" name="upi_payee_name" value="{{ old('upi_payee_name', $settings['upi_payee_name'] ?? '') }}" placeholder="e.g. Royal Dine Restaurant" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-slate-900">
+                <p class="text-[10px] text-slate-400 mt-1">Displayed in Google Pay / PhonePe when customer scans the bill</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Receipt QR Format Mode</label>
+                <select name="qr_code_type" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-slate-900">
+                    <option value="dynamic_upi" {{ ($settings['qr_code_type'] ?? '') !== 'uploaded_image' ? 'selected' : '' }}>Dynamic UPI QR (Auto-encodes exact bill amount)</option>
+                    <option value="uploaded_image" {{ ($settings['qr_code_type'] ?? '') === 'uploaded_image' ? 'selected' : '' }}>Uploaded Custom QR Code Image</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Upload QR Code Image</label>
+                <input type="file" name="qr_code_image" accept="image/png,image/jpeg,image/webp" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
+                @if(!empty($settings['qr_code_image']))
+                    <p class="text-[11px] text-slate-500 mt-1">Current uploaded image: <span class="font-mono text-slate-700">{{ $settings['qr_code_image'] }}</span></p>
+                @endif
+            </div>
+
+            <div class="md:col-span-2 pt-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="show_qr_on_receipt" value="1" {{ !empty($settings['show_qr_on_receipt']) ? 'checked' : '' }} class="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900">
+                    <span class="text-xs font-bold text-slate-800">Print UPI QR Code at the bottom / end of bill receipt</span>
+                </label>
+                <p class="text-[11px] text-slate-400 ml-6">When customer scans the printed QR at the end of the bill with GPay, PhonePe, Paytm, or BHIM, it reads the bill amount directly for instant payment.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Tax & GST Rules -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
@@ -231,6 +282,14 @@
                     <div>
                         <p class="text-xs font-bold text-slate-800">Debit / Credit Card</p>
                         <p class="text-[10px] text-slate-400">Swipe / POS EDC terminal transactions</p>
+                    </div>
+                </label>
+
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" name="enable_multimode" value="1" {{ !empty($settings['enable_multimode']) ? 'checked' : '' }} class="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900">
+                    <div>
+                        <p class="text-xs font-bold text-slate-800">Multimode / Split Payment</p>
+                        <p class="text-[10px] text-slate-400">Split tender between Cash and UPI</p>
                     </div>
                 </label>
             </div>

@@ -64,6 +64,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/bill/{bill}/cancel', [PosController::class, 'cancelBill'])->middleware('permission:bill.cancel')->name('cancel');
         Route::post('/bill/{bill}/split', [PosController::class, 'splitBill'])->middleware('permission:bill.edit')->name('split');
         Route::post('/clear-cart', [PosController::class, 'clearCartOrder'])->middleware('permission:pos.billing')->name('clear');
+        Route::post('/kot', [PosController::class, 'generateKot'])->middleware('permission:pos.billing')->name('kot');
+        Route::get('/kot/print/{bill}', [PosController::class, 'printKot'])->middleware('permission:pos.billing')->name('kot.print');
     });
 
     // POS Print

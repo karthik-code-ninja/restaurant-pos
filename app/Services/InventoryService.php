@@ -29,6 +29,8 @@ class InventoryService
 
         return DB::transaction(function () use ($bill) {
             $bill->loadMissing('items');
+            $bill->unsetRelation('items');
+            $bill->load('items');
 
             foreach ($bill->items as $item) {
                 if ($item->item_type === 'combo') {
@@ -71,6 +73,8 @@ class InventoryService
 
         return DB::transaction(function () use ($bill, $reason) {
             $bill->loadMissing('items');
+            $bill->unsetRelation('items');
+            $bill->load('items');
 
             foreach ($bill->items as $item) {
                 if ($item->item_type === 'combo') {

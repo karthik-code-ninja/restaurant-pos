@@ -17,6 +17,7 @@ class Food extends Model
     protected $fillable = [
         'category_id',
         'code',
+        'hsn_code',
         'name',
         'price',
         'tax_rate',
@@ -43,7 +44,7 @@ class Food extends Model
 
     public function ingredients(): BelongsToMany
     {
-        return $this->belongsToMany(InventoryItem::class, 'food_ingredients')
+        return $this->belongsToMany(InventoryItem::class, 'food_ingredients', 'food_id', 'inventory_item_id')
             ->withPivot('quantity')
             ->withTimestamps();
     }

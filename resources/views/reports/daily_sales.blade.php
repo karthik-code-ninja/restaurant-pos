@@ -6,6 +6,22 @@
 @section('content')
 <div class="space-y-6">
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+    <!-- Clean Print-Only Report Header -->
+    <div class="print-only mb-6 pb-3 border-b-2 border-slate-900">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-black uppercase tracking-tight text-slate-900">{{ \App\Models\Setting::get('restaurant_name', 'RestroPOS') }}</h1>
+                <p class="text-xs text-slate-700">{{ \App\Models\Setting::get('restaurant_address', '') }} | Phone: {{ \App\Models\Setting::get('restaurant_contact', '') }}</p>
+            </div>
+            <div class="text-right">
+                <span class="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-bold uppercase rounded">Daily Sales Report</span>
+                <p class="text-xs font-medium text-slate-600 mt-1">Period: {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} to {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</p>
+                <p class="text-[11px] text-slate-500">Generated: {{ date('d/m/Y h:i A') }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
         <form method="GET" action="{{ route('reports.daily') }}" class="flex items-center gap-2">
             <input type="date" name="start_date" value="{{ $startDate }}" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs">
             <span class="text-slate-400 text-xs">to</span>

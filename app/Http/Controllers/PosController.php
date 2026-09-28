@@ -42,6 +42,7 @@ class PosController extends Controller
         $tables = RestaurantTable::orderBy('floor')->orderBy('table_number')->get();
         $addons = AddOn::active()->orderBy('name')->get();
         $combos = Combo::active()->with('foods')->get();
+        $waiters = \App\Models\User::where('status', true)->with('role')->orderBy('name')->get();
         $currency = Setting::get('currency_symbol', '₹');
         $taxType = Setting::get('tax_type', 'exclusive');
         $defaultGst = Setting::get('default_gst_rate', '5.00');
@@ -51,12 +52,14 @@ class PosController extends Controller
         $activeBill = null;
         if ($request->filled('table_id')) {
             $activeBill = Bill::with(['items.addons', 'table'])
+            $activeBill = Bill::with(['items.addons', 'table', 'waiter'])
                 ->where('table_id', $request->table_id)
                 ->whereIn('status', ['pending', 'held', 'draft'])
                 ->latest()
                 ->first();
         } elseif ($request->filled('bill_id')) {
             $activeBill = Bill::with(['items.addons', 'table'])->find($request->bill_id);
+            $activeBill = Bill::with(['items.addons', 'table', 'waiter'])->find($request->bill_id);
         }
 
         return view('pos.index', compact(
@@ -64,6 +67,7 @@ class PosController extends Controller
             'tables',
             'addons',
             'combos',
+            'waiters',
             'currency',
             'taxType',
             'defaultGst',
@@ -166,6 +170,8 @@ class PosController extends Controller
             'bill_id' => ['nullable', 'exists:bills,id'],
             'order_type' => ['required', 'in:table,counter'],
             'table_id' => ['nullable', 'required_if:order_type,table', 'exists:restaurant_tables,id'],
+            'waiter_id' => ['nullable', 'exists:users,id'],
+            'waiter_name' => ['nullable', 'string', 'max:100'],
             'status' => ['required', 'in:draft,held,pending'],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
@@ -201,6 +207,8 @@ class PosController extends Controller
                 $bill->update([
                     'order_type' => $validated['order_type'],
                     'table_id' => $validated['order_type'] === 'table' ? $validated['table_id'] : null,
+                    'waiter_id' => $validated['waiter_id'] ?? $bill->waiter_id,
+                    'waiter_name' => $validated['waiter_name'] ?? $bill->waiter_name,
                     'status' => $validated['status'],
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
@@ -236,6 +244,8 @@ class PosController extends Controller
                     'order_type' => $validated['order_type'],
                     'table_id' => $validated['order_type'] === 'table' ? $validated['table_id'] : null,
                     'cashier_id' => Auth::id(),
+                    'waiter_id' => $validated['waiter_id'] ?? null,
+                    'waiter_name' => $validated['waiter_name'] ?? null,
                     'status' => $validated['status'],
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
@@ -267,6 +277,7 @@ class PosController extends Controller
                     'item_type' => $itemData['item_type'],
                     'item_id' => $itemData['item_id'],
                     'food_code' => $itemData['food_code'],
+                    'hsn_code' => $itemData['hsn_code'] ?? null,
                     'item_name' => $itemData['item_name'],
                     'unit_price' => $itemData['unit_price'],
                     'quantity' => $itemData['quantity'],
@@ -323,6 +334,8 @@ class PosController extends Controller
             'bill_id' => ['nullable', 'exists:bills,id'],
             'order_type' => ['required', 'in:table,counter'],
             'table_id' => ['nullable', 'required_if:order_type,table', 'exists:restaurant_tables,id'],
+            'waiter_id' => ['nullable', 'exists:users,id'],
+            'waiter_name' => ['nullable', 'string', 'max:100'],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],
@@ -366,6 +379,8 @@ class PosController extends Controller
                 $bill->update([
                     'order_type' => $validated['order_type'],
                     'table_id' => $validated['order_type'] === 'table' ? $validated['table_id'] : null,
+                    'waiter_id' => $validated['waiter_id'] ?? $bill->waiter_id,
+                    'waiter_name' => $validated['waiter_name'] ?? $bill->waiter_name,
                     'status' => 'completed',
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
@@ -393,6 +408,8 @@ class PosController extends Controller
                     'order_type' => $validated['order_type'],
                     'table_id' => $validated['order_type'] === 'table' ? $validated['table_id'] : null,
                     'cashier_id' => Auth::id(),
+                    'waiter_id' => $validated['waiter_id'] ?? null,
+                    'waiter_name' => $validated['waiter_name'] ?? null,
                     'status' => 'completed',
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
@@ -418,6 +435,7 @@ class PosController extends Controller
                     'item_type' => $itemData['item_type'],
                     'item_id' => $itemData['item_id'],
                     'food_code' => $itemData['food_code'],
+                    'hsn_code' => $itemData['hsn_code'] ?? null,
                     'item_name' => $itemData['item_name'],
                     'unit_price' => $itemData['unit_price'],
                     'quantity' => $itemData['quantity'],
@@ -834,6 +852,8 @@ class PosController extends Controller
                 'invoice_number' => $bill->invoice_number,
                 'order_type' => $bill->order_type,
                 'table_id' => $bill->table_id,
+                'waiter_id' => $bill->waiter_id,
+                'waiter_name' => $bill->waiter_name,
                 'customer_name' => $bill->customer_name,
                 'customer_phone' => $bill->customer_phone,
                 'discount_type' => $bill->discount_type,
@@ -854,5 +874,245 @@ class PosController extends Controller
                 }),
             ],
         ]);
+    }
+
+    /**
+     * Generate KOT (Kitchen Order Ticket) with delta/unprinted items only.
+     */
+    public function generateKot(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'bill_id' => ['nullable', 'exists:bills,id'],
+            'table_id' => ['required', 'exists:restaurant_tables,id'],
+            'waiter_id' => ['nullable', 'exists:users,id'],
+            'waiter_name' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.item_type' => ['required', 'in:food,combo'],
+            'items.*.item_id' => ['required', 'integer'],
+            'items.*.quantity' => ['required', 'numeric', 'min:1'],
+            'items.*.notes' => ['nullable', 'string'],
+            'items.*.addons' => ['nullable', 'array'],
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $table = RestaurantTable::findOrFail($validated['table_id']);
+
+            // 1. Calculate bill totals
+            $calculation = $this->calculationService->calculate($validated['items']);
+            if (empty($calculation['items'])) {
+                return response()->json(['success' => false, 'message' => 'No valid items found to generate KOT.'], 422);
+            }
+
+            // 2. Find or create active bill for this table
+            $bill = null;
+            if (!empty($validated['bill_id'])) {
+                $bill = Bill::lockForUpdate()->find($validated['bill_id']);
+            }
+            if (!$bill) {
+                $bill = Bill::where('table_id', $table->id)
+                    ->whereIn('status', ['pending', 'held', 'draft'])
+                    ->latest()
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            if (!$bill) {
+                $invoiceNum = $this->invoiceNumberService->generate();
+                $bill = Bill::create([
+                    'invoice_number' => $invoiceNum,
+                    'order_type' => 'table',
+                    'table_id' => $table->id,
+                    'cashier_id' => Auth::id(),
+                    'waiter_id' => $validated['waiter_id'] ?? null,
+                    'waiter_name' => $validated['waiter_name'] ?? null,
+                    'status' => 'pending',
+                    'subtotal' => $calculation['subtotal'],
+                    'discount_type' => 'fixed',
+                    'discount_value' => 0,
+                    'discount_amount' => 0,
+                    'tax_total' => $calculation['tax_total'],
+                    'cgst_total' => $calculation['cgst_total'],
+                    'sgst_total' => $calculation['sgst_total'],
+                    'igst_total' => $calculation['igst_total'],
+                    'rounding_difference' => $calculation['rounding_difference'],
+                    'grand_total' => $calculation['grand_total'],
+                    'notes' => $validated['notes'] ?? null,
+                    'kot_count' => 0,
+                ]);
+            } else {
+                $bill->update([
+                    'order_type' => 'table',
+                    'table_id' => $table->id,
+                    'waiter_id' => $validated['waiter_id'] ?? $bill->waiter_id,
+                    'waiter_name' => $validated['waiter_name'] ?? $bill->waiter_name,
+                    'status' => 'pending',
+                    'subtotal' => $calculation['subtotal'],
+                    'tax_total' => $calculation['tax_total'],
+                    'cgst_total' => $calculation['cgst_total'],
+                    'sgst_total' => $calculation['sgst_total'],
+                    'rounding_difference' => $calculation['rounding_difference'],
+                    'grand_total' => $calculation['grand_total'],
+                    'notes' => $validated['notes'] ?? $bill->notes,
+                ]);
+            }
+
+            // 3. Compare existing items to find delta for KOT
+            $existingItems = $bill->items()->get();
+            $printedQtyMap = [];
+            foreach ($existingItems as $ei) {
+                $key = "{$ei->item_type}_{$ei->item_id}_" . trim((string)$ei->notes);
+                $printedQtyMap[$key] = ($printedQtyMap[$key] ?? 0) + (float) $ei->kot_printed_qty;
+            }
+
+            $kotItemsToPrint = [];
+
+            // Delete and re-create bill items with updated kot_printed_qty
+            $bill->items()->delete();
+
+            foreach ($calculation['items'] as $itemData) {
+                $key = "{$itemData['item_type']}_{$itemData['item_id']}_" . trim((string)($itemData['notes'] ?? ''));
+                $prevPrinted = $printedQtyMap[$key] ?? 0;
+                $currentQty = (float) $itemData['quantity'];
+                $deltaQty = max(0, $currentQty - $prevPrinted);
+
+                if ($deltaQty > 0) {
+                    $kotItemsToPrint[] = [
+                        'item_type' => $itemData['item_type'],
+                        'item_id' => $itemData['item_id'],
+                        'name' => $itemData['item_name'],
+                        'quantity' => $deltaQty,
+                        'notes' => $itemData['notes'] ?? null,
+                        'addons' => $itemData['addons'] ?? [],
+                    ];
+                }
+
+                $billItem = BillItem::create([
+                    'bill_id' => $bill->id,
+                    'item_type' => $itemData['item_type'],
+                    'item_id' => $itemData['item_id'],
+                    'food_code' => $itemData['food_code'],
+                    'hsn_code' => $itemData['hsn_code'] ?? null,
+                    'item_name' => $itemData['item_name'],
+                    'unit_price' => $itemData['unit_price'],
+                    'quantity' => $currentQty,
+                    'kot_printed_qty' => $currentQty, // newly printed
+                    'subtotal' => $itemData['subtotal'],
+                    'tax_rate' => $itemData['tax_rate'],
+                    'tax_amount' => $itemData['tax_amount'],
+                    'cgst_amount' => $itemData['cgst_amount'],
+                    'sgst_amount' => $itemData['sgst_amount'],
+                    'igst_amount' => $itemData['igst_amount'],
+                    'total' => $itemData['total'],
+                    'notes' => $itemData['notes'] ?? null,
+                ]);
+
+                if (!empty($itemData['addons'])) {
+                    foreach ($itemData['addons'] as $addon) {
+                        BillItemAddon::create([
+                            'bill_item_id' => $billItem->id,
+                            'add_on_id' => $addon['add_on_id'],
+                            'name' => $addon['name'],
+                            'price' => $addon['price'],
+                            'tax_rate' => $addon['tax_rate'],
+                            'tax_amount' => $addon['tax_amount'],
+                            'total' => $addon['total'],
+                        ]);
+                    }
+                }
+            }
+
+            // Ensure table is occupied
+            if ($table->status !== 'occupied') {
+                $table->update(['status' => 'occupied']);
+            }
+
+            if (empty($kotItemsToPrint)) {
+                return response()->json([
+                    'success' => false,
+                    'is_all_printed' => true,
+                    'message' => "All items for Table {$table->table_number} are already printed on KOT. No newly added items to print.",
+                    'bill_id' => $bill->id,
+                    'invoice_number' => $bill->invoice_number,
+                    'kot_number' => $bill->kot_count,
+                    'kot_print_url' => route('pos.kot.print', ['bill' => $bill->id, 'kot' => $bill->kot_count, 'reprint' => 1]),
+                ]);
+            }
+
+            $bill->increment('kot_count');
+
+            // Store KOT print batch in cache for printing
+            $kotBatchData = [
+                'kot_number' => $bill->kot_count,
+                'bill_id' => $bill->id,
+                'invoice_number' => $bill->invoice_number,
+                'table_number' => $table->table_number,
+                'table_name' => $table->name,
+                'waiter' => $bill->waiter_name ?: ($bill->waiter?->name ?? 'Staff'),
+                'order_notes' => $bill->notes,
+                'date' => date('d/m/Y'),
+                'time' => date('h:i A'),
+                'printer_type' => Setting::get('printer_type', '80mm'),
+                'items' => $kotItemsToPrint,
+                'total_quantity' => array_sum(array_column($kotItemsToPrint, 'quantity')),
+                'is_reprint' => false,
+            ];
+
+            cache()->put("kot_batch_{$bill->id}_{$bill->kot_count}", $kotBatchData, now()->addHours(12));
+
+            AuditLog::log(
+                action: 'kot_printed',
+                module: 'pos',
+                referenceId: (string) $bill->id,
+                description: "KOT #{$bill->kot_count} printed for Table {$table->table_number} (" . count($kotItemsToPrint) . " new items)"
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "KOT #{$bill->kot_count} generated with " . count($kotItemsToPrint) . " new item(s) for Table {$table->table_number}!",
+                'bill_id' => $bill->id,
+                'invoice_number' => $bill->invoice_number,
+                'kot_number' => $bill->kot_count,
+                'new_items_count' => count($kotItemsToPrint),
+                'kot_print_url' => route('pos.kot.print', ['bill' => $bill->id, 'kot' => $bill->kot_count]),
+            ]);
+        });
+    }
+
+    /**
+     * Render KOT thermal print view.
+     */
+    public function printKot(Bill $bill, Request $request): View
+    {
+        $kotNum = $request->input('kot', $bill->kot_count);
+        $isReprint = $request->boolean('reprint');
+        $cacheKey = "kot_batch_{$bill->id}_{$kotNum}";
+        $kotData = cache()->get($cacheKey);
+
+        if (!$kotData || $isReprint) {
+            $bill->loadMissing(['table', 'waiter', 'items.addons']);
+            $kotData = [
+                'kot_number' => $kotNum ?: ($bill->kot_count ?: 1),
+                'bill_id' => $bill->id,
+                'invoice_number' => $bill->invoice_number,
+                'table_number' => $bill->table?->table_number ?? 'Table',
+                'table_name' => $bill->table?->name,
+                'waiter' => $bill->waiter_name ?: ($bill->waiter?->name ?? 'Staff'),
+                'order_notes' => $bill->notes,
+                'date' => $bill->created_at->format('d/m/Y'),
+                'time' => now()->format('h:i A'),
+                'printer_type' => Setting::get('printer_type', '80mm'),
+                'items' => $bill->items->map(fn($i) => [
+                    'name' => $i->item_name,
+                    'quantity' => (float) $i->quantity,
+                    'notes' => $i->notes,
+                    'addons' => $i->addons->map(fn($a) => ['name' => $a->name])->toArray(),
+                ])->toArray(),
+                'total_quantity' => (float) $bill->items->sum('quantity'),
+                'is_reprint' => true,
+            ];
+        }
+
+        return view('print.kot', compact('kotData'));
     }
 }

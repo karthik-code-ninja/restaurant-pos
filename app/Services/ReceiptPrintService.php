@@ -53,6 +53,18 @@ class ReceiptPrintService
         $dateFormat = Setting::get('date_format', 'd/m/Y');
         $timeFormat = Setting::get('time_format', 'h:i A');
 
+        $showQr = (bool) Setting::get('show_qr_on_receipt', false);
+        $qrType = Setting::get('qr_code_type', 'dynamic_upi');
+        $upiId = trim((string) Setting::get('upi_id', ''));
+        $upiPayee = trim((string) Setting::get('upi_payee_name', Setting::get('restaurant_name', '')));
+        $qrImage = Setting::get('qr_code_image', '');
+
+        $upiUri = '';
+        if ($upiId) {
+            $amt = number_format($bill->grand_total, 2, '.', '');
+            $upiUri = "upi://pay?pa={$upiId}&pn=" . urlencode($upiPayee) . "&am={$amt}&cu=INR&tn=" . urlencode("Bill " . $bill->invoice_number);
+        }
+
         return [
             'printer_type' => $printerType,
             'print_type' => $printType,
@@ -70,12 +82,21 @@ class ReceiptPrintService
                 'header' => Setting::get('receipt_header', ''),
                 'footer' => Setting::get('receipt_footer', ''),
             ],
+            'qr' => [
+                'show_qr' => $showQr,
+                'qr_type' => $qrType,
+                'upi_id' => $upiId,
+                'upi_payee' => $upiPayee,
+                'upi_uri' => $upiUri,
+                'image' => $qrImage,
+            ],
             'bill' => [
                 'id' => $bill->id,
                 'invoice_number' => $bill->invoice_number,
                 'date' => $bill->created_at->format($dateFormat),
                 'time' => $bill->created_at->format($timeFormat),
                 'cashier' => $bill->cashier?->name ?? 'Staff',
+                'waiter' => $bill->waiter_name ?: ($bill->waiter?->name ?? null),
                 'order_type' => ucfirst($bill->order_type),
                 'table_number' => $bill->table?->table_number,
                 'table_name' => $bill->table?->name,
@@ -100,6 +121,7 @@ class ReceiptPrintService
             'items' => $bill->items->map(function ($item) {
                 return [
                     'code' => $item->food_code,
+                    'hsn_code' => $item->hsn_code,
                     'name' => $item->item_name,
                     'unit_price' => $item->unit_price,
                     'quantity' => $item->quantity,

@@ -17,6 +17,8 @@ class Bill extends Model
         'order_type', // table, counter
         'table_id',
         'cashier_id',
+        'waiter_id',
+        'waiter_name',
         'status', // draft, held, pending, completed, cancelled
         'customer_name',
         'customer_phone',
@@ -37,6 +39,7 @@ class Bill extends Model
         'printed_count',
         'reprinted_count',
         'duplicate_count',
+        'kot_count',
         'is_stock_deducted',
         'parent_bill_id',
         'completed_at',
@@ -57,6 +60,7 @@ class Bill extends Model
             'printed_count' => 'integer',
             'reprinted_count' => 'integer',
             'duplicate_count' => 'integer',
+            'kot_count' => 'integer',
             'is_stock_deducted' => 'boolean',
             'cancelled_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -71,6 +75,11 @@ class Bill extends Model
     public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');
+    }
+
+    public function waiter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'waiter_id');
     }
 
     public function cancelledByUser(): BelongsTo

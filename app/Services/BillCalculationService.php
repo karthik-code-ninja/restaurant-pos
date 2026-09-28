@@ -61,6 +61,7 @@ class BillCalculationService
                 }
                 $name = $food->name;
                 $code = $food->code;
+                $hsnCode = $food->hsn_code;
                 $unitPrice = (float) $food->price;
                 $taxRate = (float) ($food->tax_rate ?? $defaultGstRate);
 
@@ -120,6 +121,7 @@ class BillCalculationService
                 'item_type' => $type,
                 'item_id' => $itemId,
                 'food_code' => $code,
+                'hsn_code' => $hsnCode ?? null,
                 'item_name' => $name,
                 'unit_price' => $unitPrice,
                 'quantity' => $qty,

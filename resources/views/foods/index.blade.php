@@ -67,6 +67,7 @@
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
                         <th class="py-3 px-4">Item Code</th>
+                        <th class="py-3 px-4">HSN Code</th>
                         <th class="py-3 px-4">Food Name</th>
                         <th class="py-3 px-4">Category</th>
                         <th class="py-3 px-4 text-center">Type</th>
@@ -82,6 +83,9 @@
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="py-3 px-4 font-mono font-bold text-slate-900">
                             <span class="px-2 py-0.5 bg-slate-100 rounded text-slate-700 font-bold">{{ $food->code }}</span>
+                        </td>
+                        <td class="py-3 px-4 font-mono text-xs font-semibold text-slate-700">
+                            {{ $food->hsn_code ?: '-' }}
                         </td>
                         <td class="py-3 px-4">
                             <div class="flex items-center gap-2">
@@ -166,6 +170,12 @@
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Food Code / Item Code *</label>
                     <input type="text" name="code" id="foodCode" required placeholder="e.g. FD101"
                         class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 uppercase font-mono font-bold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">HSN Code</label>
+                    <input type="text" name="hsn_code" id="foodHsn" placeholder="e.g. 2106 or 9963"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-mono font-semibold">
                 </div>
 
                 <div>
@@ -277,6 +287,7 @@
         form.action = "{{ route('foods.store') }}";
         methodSpoof.innerHTML = '';
         document.getElementById('foodCode').value = '';
+        document.getElementById('foodHsn').value = '';
         document.getElementById('foodName').value = '';
         document.getElementById('foodPrice').value = '';
         document.getElementById('foodTax').value = '5.00';
@@ -289,9 +300,11 @@
 
     function openEditModal(food) {
         modalTitle.innerText = 'Edit Food Item: ' + food.name;
-        form.action = "/foods/" + food.id;
+        const foodsBaseUrl = "{{ url('foods') }}";
+        form.action = foodsBaseUrl + "/" + food.id;
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('foodCode').value = food.code;
+        document.getElementById('foodHsn').value = food.hsn_code || '';
         document.getElementById('foodName').value = food.name;
         document.getElementById('foodCat').value = food.category_id;
         document.getElementById('foodPrice').value = food.price;

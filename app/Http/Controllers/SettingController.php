@@ -49,10 +49,18 @@ class SettingController extends Controller
             'sgst_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'igst_rate' => ['required', 'numeric', 'min:0', 'max:100'],
 
+            // QR Code & UPI
+            'upi_id' => ['nullable', 'string', 'max:100'],
+            'upi_payee_name' => ['nullable', 'string', 'max:150'],
+            'qr_code_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'show_qr_on_receipt' => ['nullable', 'boolean'],
+            'qr_code_type' => ['nullable', 'in:dynamic_upi,uploaded_image'],
+
             // Payment Methods
             'enable_cash' => ['nullable', 'boolean'],
             'enable_upi' => ['nullable', 'boolean'],
             'enable_card' => ['nullable', 'boolean'],
+            'enable_multimode' => ['nullable', 'boolean'],
 
             // General
             'currency_symbol' => ['required', 'string', 'max:10'],
@@ -66,10 +74,15 @@ class SettingController extends Controller
             Setting::set('restaurant_logo', $path, 'restaurant');
         }
 
+        if ($request->hasFile('qr_code_image')) {
+            $path = $request->file('qr_code_image')->store('qr_codes', 'public');
+            Setting::set('qr_code_image', $path, 'receipt');
+        }
+
         // Booleans
         $booleans = [
             'auto_print', 'show_logo_on_receipt', 'print_restaurant_copy', 'print_customer_copy',
-            'enable_cash', 'enable_upi', 'enable_card'
+            'show_qr_on_receipt', 'enable_cash', 'enable_upi', 'enable_card', 'enable_multimode'
         ];
 
         foreach ($booleans as $b) {
@@ -78,8 +91,8 @@ class SettingController extends Controller
 
         // All other text/numeric values
         foreach ($validated as $key => $val) {
-            if ($key !== 'restaurant_logo' && !in_array($key, $booleans)) {
-                Setting::set($key, (string) $val);
+            if ($key !== 'restaurant_logo' && $key !== 'qr_code_image' && !in_array($key, $booleans)) {
+                Setting::set($key, (string) ($val ?? ''));
             }
         }
 
