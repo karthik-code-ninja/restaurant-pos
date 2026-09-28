@@ -253,7 +253,7 @@
 
     function openEditModal(exp) {
         modalTitle.innerText = 'Edit Expense #' + exp.id;
-        form.action = "/expenses/" + exp.id;
+        form.action = "{{ route('expenses.update', ':id') }}".replace(':id', exp.id);
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('expDate').value = exp.date ? exp.date.substring(0, 10) : '';
         document.getElementById('expAmount').value = exp.amount;

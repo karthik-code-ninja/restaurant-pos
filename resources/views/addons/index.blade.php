@@ -147,7 +147,7 @@
 
     function openEditModal(addon) {
         modalTitle.innerText = 'Edit Add-on: ' + addon.name;
-        form.action = "/addons/" + addon.id;
+        form.action = "{{ route('addons.update', ':id') }}".replace(':id', addon.id);
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('addonName').value = addon.name;
         document.getElementById('addonPrice').value = addon.price;
