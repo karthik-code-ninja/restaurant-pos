@@ -55,6 +55,18 @@
                     @endforeach
                 </select>
             </div>
+
+            <!-- Waiter Selector -->
+            <div id="waiterSelectWrapper" class="flex items-center">
+                <select id="selectedWaiterId" onchange="onWaiterSelected()" class="bg-slate-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[125px] sm:max-w-none">
+                    <option value="">Select Waiter...</option>
+                    @foreach($waiters as $w)
+                    <option value="{{ $w->id }}" data-name="{{ $w->name }}" {{ (isset($activeBill) && $activeBill->waiter_id == $w->id) ? 'selected' : '' }}>
+                        {{ $w->name }}
+                    </option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <!-- Center Search Bar -->
@@ -83,7 +95,13 @@
                 <span class="hidden sm:inline">Drafts</span>
             </button>
 
-            <div class="h-6 w-px bg-slate-800 mx-1"></div>
+            <!-- Mobile Cart Button (Visible on screens < lg) -->
+            <button type="button" onclick="toggleMobileCart()" class="lg:hidden px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span id="mobileCartHeaderCount" class="bg-white text-orange-600 px-1.5 py-0.2 rounded-full text-[10px] font-black">0</span>
+            </button>
+
+            <div class="h-6 w-px bg-slate-800 mx-1 hidden lg:block"></div>
 
             <div class="text-right hidden md:block">
                 <p class="text-xs font-bold text-white">{{ auth()->user()->name }}</p>
@@ -95,8 +113,8 @@
     <!-- Main 3-Section Split Area -->
     <div class="flex-1 flex overflow-hidden">
         
-        <!-- SECTION 1: Categories Left Sidebar -->
-        <div class="w-48 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-10">
+        <!-- SECTION 1: Categories Left Sidebar (Desktop) -->
+        <div class="hidden lg:flex w-44 xl:w-48 bg-white border-r border-slate-200 flex-col flex-shrink-0 z-10">
             <div class="p-3 border-b border-slate-100 flex items-center justify-between">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Categories</span>
                 <button type="button" id="btnVegFilter" onclick="toggleVegFilter()" class="text-[10px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 font-bold hover:bg-slate-50">
@@ -121,7 +139,21 @@
         </div>
 
         <!-- SECTION 2: Food Grid Area -->
-        <div class="flex-1 bg-slate-50 flex flex-col overflow-hidden">
+        <div class="flex-1 bg-slate-50 flex flex-col overflow-hidden relative">
+            <!-- Mobile Horizontal Category Chips -->
+            <div class="lg:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap z-10" id="mobileCategoriesBar">
+                <button type="button" onclick="selectCategory('all')" id="mob_cat_all"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 bg-orange-600 text-white shadow-sm mob-category-btn">
+                    <i class="fa-solid fa-fire mr-1"></i> All Items
+                </button>
+                @foreach($categories as $cat)
+                <button type="button" onclick="selectCategory({{ $cat->id }})" id="mob_cat_{{ $cat->id }}"
+                    class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shrink-0 border border-slate-200 mob-category-btn">
+                    {{ $cat->name }}
+                </button>
+                @endforeach
+            </div>
+
             <!-- Active Search / Filter Status Banner -->
             <div id="filterBanner" class="px-4 py-2 bg-white border-b border-slate-200 text-xs text-slate-500 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -139,8 +171,11 @@
             </div>
         </div>
 
-        <!-- SECTION 3: Current Bill / Cart -->
-        <div class="w-96 bg-white border-l border-slate-200 flex flex-col flex-shrink-0 shadow-lg z-10">
+        <!-- Mobile Cart Backdrop -->
+        <div id="mobileCartBackdrop" onclick="toggleMobileCart()" class="fixed inset-0 bg-slate-900/60 z-30 hidden lg:hidden"></div>
+
+        <!-- SECTION 3: Current Bill / Cart Drawer -->
+        <div id="posCartPanel" class="fixed inset-y-0 right-0 w-full sm:w-96 z-40 bg-white border-l border-slate-200 flex flex-col shadow-2xl transform translate-x-full lg:translate-x-0 lg:static lg:w-96 lg:shadow-lg transition-transform duration-300 ease-in-out">
             <!-- Cart Header -->
             <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                 <div>
@@ -152,9 +187,14 @@
                     <p class="text-[11px] text-slate-500 font-medium" id="orderTargetDisplay">Table: None selected</p>
                 </div>
 
-                <button type="button" onclick="clearCart()" title="Clear Current Cart" class="px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded font-semibold transition">
-                    <i class="fa-solid fa-rotate-left mr-1"></i> Clear
-                </button>
+                <div class="flex items-center gap-1">
+                    <button type="button" onclick="clearCart()" title="Clear Current Cart" class="px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded font-semibold transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Clear
+                    </button>
+                    <button type="button" onclick="toggleMobileCart()" class="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition" title="Close Cart">
+                        <i class="fa-solid fa-xmark text-base"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Cart Items List (Scrollable) -->
@@ -218,24 +258,46 @@
                     </div>
                 </div>
 
-                <!-- Bottom POS Action Buttons -->
-                <div class="grid grid-cols-4 gap-2 pt-1">
-                    <button type="button" onclick="saveAsHeld()" class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition">
+                <!-- Bottom POS Action Buttons with KOT -->
+                <div class="grid grid-cols-5 gap-1.5 pt-1">
+                    <button type="button" onclick="printKot()" id="btnKotPrint" class="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Send to Kitchen Printer">
+                        <i class="fa-solid fa-fire-burner"></i>
+                        <span>KOT</span>
+                    </button>
+
+                    <button type="button" onclick="saveAsHeld()" class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Hold Order">
                         <i class="fa-solid fa-pause"></i>
                         <span>Hold</span>
                     </button>
 
-                    <button type="button" onclick="saveAsDraft()" class="py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition">
+                    <button type="button" onclick="saveAsDraft()" class="py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Save Draft">
                         <i class="fa-solid fa-file-pen"></i>
                         <span>Draft</span>
                     </button>
 
-                    <button type="button" onclick="openPaymentModal()" class="col-span-2 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 transition">
+                    <button type="button" onclick="openPaymentModal()" class="col-span-2 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-orange-600/30 transition">
                         <i class="fa-solid fa-credit-card"></i>
                         <span>Pay & Settle</span>
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Mobile Sticky Bottom Floating Cart Bar -->
+    <div id="mobileBottomBar" onclick="toggleMobileCart()" class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900 text-white px-4 py-3 flex items-center justify-between z-20 shadow-2xl cursor-pointer">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-orange-600/30">
+                <i class="fa-solid fa-cart-shopping"></i>
+            </div>
+            <div>
+                <p id="mobileBottomQty" class="text-xs font-bold leading-none text-slate-100">0 items</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Tap to view cart</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="mobileBottomTotal" class="font-black text-sm text-white">₹0.00</span>
+            <span class="px-2.5 py-1 bg-orange-600 text-white rounded-lg text-xs font-extrabold">View Cart <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i></span>
         </div>
     </div>
 
@@ -265,19 +327,68 @@
                 <!-- Payment Method Tabs -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Payment Method</label>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button type="button" onclick="selectPayMethod('cash')" id="payTab_cash" class="pay-method-btn p-3 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1.5 transition">
-                            <i class="fa-solid fa-money-bill-wave text-lg"></i>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button type="button" onclick="selectPayMethod('cash')" id="payTab_cash" class="pay-method-btn p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition">
+                            <i class="fa-solid fa-money-bill-wave text-base"></i>
                             <span>Cash</span>
                         </button>
-                        <button type="button" onclick="selectPayMethod('upi')" id="payTab_upi" class="pay-method-btn p-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1.5 transition">
-                            <i class="fa-solid fa-qrcode text-lg"></i>
+                        <button type="button" onclick="selectPayMethod('upi')" id="payTab_upi" class="pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition">
+                            <i class="fa-solid fa-qrcode text-base"></i>
                             <span>UPI / QR</span>
                         </button>
-                        <button type="button" onclick="selectPayMethod('card')" id="payTab_card" class="pay-method-btn p-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1.5 transition">
-                            <i class="fa-solid fa-credit-card text-lg"></i>
+                        <button type="button" onclick="selectPayMethod('card')" id="payTab_card" class="pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition">
+                            <i class="fa-solid fa-credit-card text-base"></i>
                             <span>Card</span>
                         </button>
+                        <button type="button" onclick="selectPayMethod('multimode')" id="payTab_multimode" class="pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition">
+                            <i class="fa-solid fa-arrows-split-up-and-left text-base text-purple-600"></i>
+                            <span>Multimode</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multimode (Split Pay) Area -->
+                <div id="multimodeDetailsArea" class="hidden space-y-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="flex items-center justify-between text-xs font-bold pb-2 border-b border-slate-200">
+                        <span class="text-slate-700 uppercase">Split Tender (Cash + UPI)</span>
+                        <span id="multiDueBadge" class="text-orange-600 font-mono">Due: ₹0.00</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cash Portion (₹) *</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 font-bold text-slate-400 text-xs">₹</span>
+                                <input type="number" step="0.01" min="0" id="multiCashInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-6 pr-2.5 py-2 rounded-xl border border-slate-300 font-black text-base text-slate-900 focus:ring-2 focus:ring-orange-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">UPI Portion (₹) *</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 font-bold text-slate-400 text-xs">₹</span>
+                                <input type="number" step="0.01" min="0" id="multiUpiInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-6 pr-2.5 py-2 rounded-xl border border-slate-300 font-black text-base text-slate-900 focus:ring-2 focus:ring-orange-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2 pt-0.5">
+                        <button type="button" onclick="autoFillMultiUpi()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
+                            <i class="fa-solid fa-arrow-right text-indigo-500 mr-1"></i> Balance to UPI
+                        </button>
+                        <button type="button" onclick="autoFillMultiCash()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
+                            <i class="fa-solid fa-arrow-left text-emerald-500 mr-1"></i> Balance to Cash
+                        </button>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">UPI Transaction / UTR Ref</label>
+                        <input type="text" id="multiUpiRefInput" placeholder="Optional UPI transaction reference" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                    </div>
+
+                    <div id="multiStatusBox" class="p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200">
+                        <span>Total Entered: <span id="multiEnteredSum">₹0.00</span></span>
+                        <span id="multiBalanceStatus">Balance: ₹0.00</span>
                     </div>
                 </div>
 
@@ -413,6 +524,8 @@
         // State
         let orderType = 'table'; // 'table' or 'counter'
         let currentTableId = null;
+        let currentWaiterId = null;
+        let currentWaiterName = null;
         let activeBillId = null;
         let activeInvoiceNumber = null;
         let cart = []; // [ { id, item_type: 'food'|'combo', item_id, code, name, unit_price, quantity, notes, addons: [] } ]
@@ -438,6 +551,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchFoods();
 
+            // Initialize waiter if selected in dropdown
+            const waiterSel = document.getElementById('selectedWaiterId');
+            if (waiterSel && waiterSel.value) {
+                currentWaiterId = parseInt(waiterSel.value);
+                currentWaiterName = waiterSel.options[waiterSel.selectedIndex].getAttribute('data-name') || waiterSel.options[waiterSel.selectedIndex].text.trim();
+            }
+
             // Load initial active bill if passed from table or route
             if (INITIAL_ACTIVE_BILL) {
                 resumeBillData(INITIAL_ACTIVE_BILL);
@@ -450,7 +570,7 @@
             }
         });
 
-        // 1. ORDER TYPE & TABLE LOGIC
+        // 1. ORDER TYPE, TABLE & WAITER LOGIC
         function setOrderType(type) {
             orderType = type;
             const btnTbl = document.getElementById('btnTypeTable');
@@ -479,6 +599,31 @@
             const sel = document.getElementById('selectedTableId');
             currentTableId = sel.value || null;
             updateOrderTargetDisplay();
+        }
+
+        function onWaiterSelected() {
+            const sel = document.getElementById('selectedWaiterId');
+            if (sel && sel.selectedIndex >= 0 && sel.value) {
+                currentWaiterId = parseInt(sel.value);
+                currentWaiterName = sel.options[sel.selectedIndex].getAttribute('data-name') || sel.options[sel.selectedIndex].text.trim();
+            } else {
+                currentWaiterId = null;
+                currentWaiterName = null;
+            }
+        }
+
+        function toggleMobileCart() {
+            const panel = document.getElementById('posCartPanel');
+            const backdrop = document.getElementById('mobileCartBackdrop');
+            if (!panel || !backdrop) return;
+            const isOpen = !panel.classList.contains('translate-x-full');
+            if (isOpen) {
+                panel.classList.add('translate-x-full');
+                backdrop.classList.add('hidden');
+            } else {
+                panel.classList.remove('translate-x-full');
+                backdrop.classList.remove('hidden');
+            }
         }
 
         function updateOrderTargetDisplay() {
@@ -585,7 +730,16 @@
             if (activeBtn) {
                 activeBtn.className = 'w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between bg-orange-600 text-white shadow-sm category-btn';
             }
-            document.getElementById('currentCategoryTitle').innerText = activeBtn ? activeBtn.querySelector('span').innerText : 'All Items';
+
+            document.querySelectorAll('.mob-category-btn').forEach(btn => {
+                btn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shrink-0 border border-slate-200 mob-category-btn';
+            });
+            const activeMobBtn = document.getElementById(`mob_cat_${catId}`);
+            if (activeMobBtn) {
+                activeMobBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 bg-orange-600 text-white shadow-sm mob-category-btn';
+            }
+
+            document.getElementById('currentCategoryTitle').innerText = activeBtn ? activeBtn.querySelector('span').innerText : (activeMobBtn ? activeMobBtn.innerText.trim() : 'All Items');
             fetchFoods();
         }
 
@@ -771,6 +925,10 @@
                     </div>
                 `;
                 totalQtySpan.innerText = '0';
+                const mobHeaderCount = document.getElementById('mobileCartHeaderCount');
+                if (mobHeaderCount) mobHeaderCount.innerText = '0';
+                const mobBottomQty = document.getElementById('mobileBottomQty');
+                if (mobBottomQty) mobBottomQty.innerText = '0 items';
                 return;
             }
 
@@ -825,6 +983,10 @@
 
             container.innerHTML = html;
             totalQtySpan.innerText = totalQty;
+            const mobHeaderCount = document.getElementById('mobileCartHeaderCount');
+            if (mobHeaderCount) mobHeaderCount.innerText = totalQty;
+            const mobBottomQty = document.getElementById('mobileBottomQty');
+            if (mobBottomQty) mobBottomQty.innerText = `${totalQty} item${totalQty === 1 ? '' : 's'}`;
         }
 
         // 4. CENTRALIZED BACKEND CALCULATION TRIGGER
@@ -836,6 +998,8 @@
                 document.getElementById('discountAmountDisplay').innerText = `-${CURRENCY}0.00`;
                 document.getElementById('roundingDisplay').innerText = `${CURRENCY}0.00`;
                 document.getElementById('grandTotalDisplay').innerText = `${CURRENCY}0.00`;
+                const mobBottomTotal = document.getElementById('mobileBottomTotal');
+                if (mobBottomTotal) mobBottomTotal.innerText = `${CURRENCY}0.00`;
                 calculationState = null;
                 return;
             }
@@ -867,6 +1031,8 @@
                     document.getElementById('discountAmountDisplay').innerText = `-${CURRENCY}${calculationState.discount_amount.toFixed(2)}`;
                     document.getElementById('roundingDisplay').innerText = `${CURRENCY}${calculationState.rounding_difference.toFixed(2)}`;
                     document.getElementById('grandTotalDisplay').innerText = `${CURRENCY}${calculationState.grand_total.toFixed(2)}`;
+                    const mobBottomTotal = document.getElementById('mobileBottomTotal');
+                    if (mobBottomTotal) mobBottomTotal.innerText = `${CURRENCY}${calculationState.grand_total.toFixed(2)}`;
                 }
             } catch (err) {
                 console.error("Calculation error:", err);
@@ -897,6 +1063,8 @@
                 bill_id: activeBillId,
                 order_type: orderType,
                 table_id: currentTableId,
+                waiter_id: currentWaiterId,
+                waiter_name: currentWaiterName,
                 status: status,
                 customer_name: document.getElementById('custName').value,
                 customer_phone: document.getElementById('custPhone').value,
@@ -935,6 +1103,95 @@
             }
         }
 
+        // 5.1 KOT (KITCHEN ORDER TICKET) PRINTING
+        async function printKot() {
+            if (cart.length === 0) {
+                Toast.fire({ icon: 'warning', title: 'Cart is empty. Add items to print KOT.' });
+                return;
+            }
+
+            if (orderType === 'table' && !currentTableId) {
+                Toast.fire({ icon: 'warning', title: 'Please select a dining table for kitchen KOT.' });
+                return;
+            }
+
+            const btn = document.getElementById('btnKotPrint');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Printing...</span>';
+            }
+
+            try {
+                const res = await fetch(`{{ route('pos.kot') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        table_id: currentTableId,
+                        bill_id: activeBillId,
+                        waiter_id: currentWaiterId,
+                        waiter_name: currentWaiterName,
+                        notes: document.getElementById('custName')?.value ? `Cust: ${document.getElementById('custName').value}` : null,
+                        items: cart
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.bill_id) {
+                    activeBillId = data.bill_id;
+                    activeInvoiceNumber = data.invoice_number;
+                    const billDisplay = document.getElementById('activeBillIdDisplay');
+                    if (billDisplay) billDisplay.innerText = `#${data.invoice_number}`;
+                }
+
+                if (data.success) {
+                    window.open(data.kot_print_url, '_blank', 'width=380,height=550');
+                    Toast.fire({
+                        icon: 'success',
+                        title: data.message
+                    });
+                } else if (data.is_all_printed) {
+                    const reprintConfirm = await Swal.fire({
+                        title: 'All Items Already Printed',
+                        text: data.message + '\nWould you like to reprint the existing KOT ticket?',
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonColor: '#4f46e5',
+                        cancelButtonColor: '#64748b',
+                        confirmButtonText: '<i class="fa-solid fa-print mr-1"></i> Reprint KOT',
+                        cancelButtonText: 'Close'
+                    });
+
+                    if (reprintConfirm.isConfirmed && data.kot_print_url) {
+                        window.open(data.kot_print_url, '_blank', 'width=380,height=550');
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'KOT Error',
+                        text: data.message || 'Failed to generate KOT.'
+                    });
+                }
+            } catch (err) {
+                console.error('KOT error:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Network Error',
+                    text: 'Failed to communicate with kitchen server.'
+                });
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }
+        }
+
         // 6. PAYMENT MODAL & COMPLETION
         function openPaymentModal() {
             if (cart.length === 0 || !calculationState) {
@@ -947,9 +1204,20 @@
                 return;
             }
 
-            document.getElementById('payDueAmountDisplay').innerText = `${CURRENCY}${calculationState.grand_total.toFixed(2)}`;
+            const grandTotal = calculationState.grand_total || 0;
+            document.getElementById('payDueAmountDisplay').innerText = `${CURRENCY}${grandTotal.toFixed(2)}`;
             document.getElementById('payDueItemsCount').innerText = `${calculationState.total_quantity} items`;
-            document.getElementById('cashTenderedInput').value = calculationState.grand_total;
+            document.getElementById('cashTenderedInput').value = grandTotal;
+
+            // Multimode initialization
+            const multiCash = document.getElementById('multiCashInput');
+            const multiUpi = document.getElementById('multiUpiInput');
+            if (multiCash) multiCash.value = grandTotal.toFixed(2);
+            if (multiUpi) multiUpi.value = '0';
+            const multiRef = document.getElementById('multiUpiRefInput');
+            if (multiRef) multiRef.value = '';
+            calculateMultiModeSplit();
+
             calculateChange();
             selectPayMethod('cash');
 
@@ -963,22 +1231,81 @@
         function selectPayMethod(method) {
             selectedPaymentMethod = method;
             document.querySelectorAll('.pay-method-btn').forEach(btn => {
-                btn.className = 'pay-method-btn p-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1.5 transition';
+                btn.className = 'pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition';
             });
             const active = document.getElementById(`payTab_${method}`);
             if (active) {
-                active.className = 'pay-method-btn p-3 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1.5 transition';
+                active.className = 'pay-method-btn p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition';
             }
 
             const cashArea = document.getElementById('cashDetailsArea');
             const refArea = document.getElementById('referenceDetailsArea');
+            const multiArea = document.getElementById('multimodeDetailsArea');
+
             if (method === 'cash') {
                 cashArea.classList.remove('hidden');
                 refArea.classList.add('hidden');
+                if (multiArea) multiArea.classList.add('hidden');
+            } else if (method === 'multimode') {
+                cashArea.classList.add('hidden');
+                refArea.classList.add('hidden');
+                if (multiArea) {
+                    multiArea.classList.remove('hidden');
+                    calculateMultiModeSplit();
+                }
             } else {
                 cashArea.classList.add('hidden');
                 refArea.classList.remove('hidden');
+                if (multiArea) multiArea.classList.add('hidden');
             }
+        }
+
+        function calculateMultiModeSplit() {
+            if (!calculationState) return;
+            const grandTotal = parseFloat(calculationState.grand_total) || 0;
+            const cashVal = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
+            const upiVal = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
+            const totalEntered = +(cashVal + upiVal).toFixed(2);
+            const diff = +(grandTotal - totalEntered).toFixed(2);
+
+            const enteredSpan = document.getElementById('multiEnteredSum');
+            const balanceSpan = document.getElementById('multiBalanceStatus');
+            const statusBox = document.getElementById('multiStatusBox');
+            const dueBadge = document.getElementById('multiDueBadge');
+
+            if (dueBadge) dueBadge.innerText = `Due: ${CURRENCY}${grandTotal.toFixed(2)}`;
+            if (enteredSpan) enteredSpan.innerText = `${CURRENCY}${totalEntered.toFixed(2)}`;
+
+            if (Math.abs(diff) < 0.01) {
+                if (balanceSpan) balanceSpan.innerText = 'Matched (Exact)';
+                if (statusBox) statusBox.className = 'p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-emerald-50 text-emerald-800 border border-emerald-200';
+            } else if (diff > 0) {
+                if (balanceSpan) balanceSpan.innerText = `Short: ${CURRENCY}${diff.toFixed(2)}`;
+                if (statusBox) statusBox.className = 'p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200';
+            } else {
+                if (balanceSpan) balanceSpan.innerText = `Excess: ${CURRENCY}${Math.abs(diff).toFixed(2)}`;
+                if (statusBox) statusBox.className = 'p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-rose-50 text-rose-800 border border-rose-200';
+            }
+        }
+
+        function autoFillMultiUpi() {
+            if (!calculationState) return;
+            const grandTotal = parseFloat(calculationState.grand_total) || 0;
+            const cashVal = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
+            const rem = Math.max(0, +(grandTotal - cashVal).toFixed(2));
+            const upiInput = document.getElementById('multiUpiInput');
+            if (upiInput) upiInput.value = rem > 0 ? rem.toFixed(2) : '0';
+            calculateMultiModeSplit();
+        }
+
+        function autoFillMultiCash() {
+            if (!calculationState) return;
+            const grandTotal = parseFloat(calculationState.grand_total) || 0;
+            const upiVal = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
+            const rem = Math.max(0, +(grandTotal - upiVal).toFixed(2));
+            const cashInput = document.getElementById('multiCashInput');
+            if (cashInput) cashInput.value = rem > 0 ? rem.toFixed(2) : '0';
+            calculateMultiModeSplit();
         }
 
         function setTendered(amt) {
@@ -1006,29 +1333,73 @@
             btn.disabled = true;
             btn.innerText = 'Processing...';
 
+            let payments = [];
+            if (selectedPaymentMethod === 'multimode') {
+                const cashAmt = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
+                const upiAmt = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
+                const multiRef = document.getElementById('multiUpiRefInput')?.value?.trim() || null;
+
+                if (cashAmt <= 0 && upiAmt <= 0) {
+                    Toast.fire({ icon: 'warning', title: 'Please enter Cash and/or UPI amounts for Multimode payment.' });
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check-double"></i><span>Complete & Print Bill</span>';
+                    return;
+                }
+
+                const totalPaid = +(cashAmt + upiAmt).toFixed(2);
+                const grandTotal = +(calculationState.grand_total).toFixed(2);
+                if (Math.abs(totalPaid - grandTotal) > 0.05) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Amount Mismatch',
+                        text: `Entered total (${CURRENCY}${totalPaid.toFixed(2)}) must equal bill grand total (${CURRENCY}${grandTotal.toFixed(2)}).`
+                    });
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check-double"></i><span>Complete & Print Bill</span>';
+                    return;
+                }
+
+                if (cashAmt > 0) {
+                    payments.push({
+                        payment_method: 'cash',
+                        amount: cashAmt,
+                        reference_number: null
+                    });
+                }
+                if (upiAmt > 0) {
+                    payments.push({
+                        payment_method: 'upi',
+                        amount: upiAmt,
+                        reference_number: multiRef
+                    });
+                }
+            } else {
+                payments.push({
+                    payment_method: selectedPaymentMethod,
+                    amount: calculationState.grand_total,
+                    reference_number: document.getElementById('payReferenceInput').value || null
+                });
+            }
+
             const payload = {
                 bill_id: activeBillId,
                 order_type: orderType,
                 table_id: currentTableId,
+                waiter_id: currentWaiterId,
+                waiter_name: currentWaiterName,
                 customer_name: document.getElementById('custName').value,
                 customer_phone: document.getElementById('custPhone').value,
                 discount_type: document.getElementById('discountType').value,
                 discount_value: parseFloat(document.getElementById('discountValue').value) || 0,
                 items: cart,
-                payments: [
-                    {
-                        payment_method: selectedPaymentMethod,
-                        amount: calculationState.grand_total,
-                        reference_number: document.getElementById('payReferenceInput').value || null
-                    }
-                ]
+                payments: payments
             };
 
             try {
                 const res = await fetch(
                     `{{ route('pos.pay') }}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
@@ -1222,6 +1593,15 @@
                 currentTableId = bill.table_id;
             }
             updateOrderTargetDisplay();
+
+            if (bill.waiter_id) {
+                currentWaiterId = bill.waiter_id;
+                currentWaiterName = bill.waiter_name || null;
+                const waiterSel = document.getElementById('selectedWaiterId');
+                if (waiterSel) waiterSel.value = bill.waiter_id;
+            } else if (bill.waiter_name) {
+                currentWaiterName = bill.waiter_name;
+            }
 
             document.getElementById('custName').value = bill.customer_name || '';
             document.getElementById('custPhone').value = bill.customer_phone || '';

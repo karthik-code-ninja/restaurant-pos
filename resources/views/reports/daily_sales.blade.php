@@ -5,7 +5,6 @@
 
 @section('content')
 <div class="space-y-6">
-    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
     <!-- Clean Print-Only Report Header -->
     <div class="print-only mb-6 pb-3 border-b-2 border-slate-900">
         <div class="flex justify-between items-start">
@@ -65,7 +64,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="p-4 border-t border-slate-100">
+        <div class="p-4 border-t border-slate-100 no-print">
             {{ $report->links() }}
         </div>
     </div>
