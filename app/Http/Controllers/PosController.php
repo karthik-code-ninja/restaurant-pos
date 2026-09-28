@@ -51,14 +51,12 @@ class PosController extends Controller
         // Check if there is an active table bill requested
         $activeBill = null;
         if ($request->filled('table_id')) {
-            $activeBill = Bill::with(['items.addons', 'table'])
             $activeBill = Bill::with(['items.addons', 'table', 'waiter'])
                 ->where('table_id', $request->table_id)
                 ->whereIn('status', ['pending', 'held', 'draft'])
                 ->latest()
                 ->first();
         } elseif ($request->filled('bill_id')) {
-            $activeBill = Bill::with(['items.addons', 'table'])->find($request->bill_id);
             $activeBill = Bill::with(['items.addons', 'table', 'waiter'])->find($request->bill_id);
         }
 
