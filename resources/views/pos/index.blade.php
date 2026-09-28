@@ -285,19 +285,27 @@
     </div>
 
     <!-- Mobile Sticky Bottom Floating Cart Bar -->
-    <div id="mobileBottomBar" onclick="toggleMobileCart()" class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900 text-white px-4 py-3 flex items-center justify-between z-20 shadow-2xl cursor-pointer">
-        <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-orange-600/30">
+    <div id="mobileBottomBar" class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between z-20 shadow-2xl">
+        <div onclick="toggleMobileCart()" class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+            <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
                 <i class="fa-solid fa-cart-shopping"></i>
             </div>
-            <div>
-                <p id="mobileBottomQty" class="text-xs font-bold leading-none text-slate-100">0 items</p>
+            <div class="truncate">
+                <div class="flex items-center gap-1.5">
+                    <span id="mobileBottomQty" class="text-xs font-bold leading-none text-slate-100">0 items</span>
+                    <span class="text-slate-500">&bull;</span>
+                    <span id="mobileBottomTotal" class="font-black text-xs text-amber-400">₹0.00</span>
+                </div>
                 <p class="text-[10px] text-slate-400 mt-0.5">Tap to view cart</p>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <span id="mobileBottomTotal" class="font-black text-sm text-white">₹0.00</span>
-            <span class="px-2.5 py-1 bg-orange-600 text-white rounded-lg text-xs font-extrabold">View Cart <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i></span>
+        <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="printKot()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition" title="Print Kitchen Order Ticket">
+                <i class="fa-solid fa-fire-burner"></i> KOT
+            </button>
+            <button type="button" onclick="toggleMobileCart()" class="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-extrabold flex items-center gap-1 shadow-sm transition">
+                Cart <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
         </div>
     </div>
 
