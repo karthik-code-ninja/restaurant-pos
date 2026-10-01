@@ -567,6 +567,8 @@
         const CURRENCY = "{{ $currency }}";
         const AVAILABLE_ADDONS = @json($addons);
         const INITIAL_ACTIVE_BILL = @json($activeBill);
+        const KITCHEN_PRINTERS = @json($kitchenPrinters ?? []);
+        const COUNTER_PRINTERS = @json($counterPrinters ?? []);
 
         // State
         let orderType = 'table'; // 'table' or 'counter'
@@ -1210,11 +1212,26 @@
                 }
 
                 if (data.success) {
-                    window.open(data.kot_print_url, '_blank', 'width=380,height=550');
-                    Toast.fire({
-                        icon: 'success',
-                        title: data.message
-                    });
+                    const hasNetworkDirect = data.direct_prints && data.direct_prints.some(p => p.success);
+                    const hasBrowserPrint = !data.kitchen_printers || data.kitchen_printers.some(p => p.connection_type === 'browser') || !hasNetworkDirect;
+
+                    if (hasNetworkDirect) {
+                        const directNames = data.direct_prints.filter(p => p.success).map(p => p.printer).join(', ');
+                        Toast.fire({
+                            icon: 'success',
+                            title: `KOT sent to Kitchen: ${directNames}`
+                        });
+                    }
+
+                    if (hasBrowserPrint && data.kot_print_url) {
+                        window.open(data.kot_print_url, '_blank', 'width=380,height=550');
+                        if (!hasNetworkDirect) {
+                            Toast.fire({
+                                icon: 'success',
+                                title: data.message
+                            });
+                        }
+                    }
                 } else if (data.is_all_printed) {
                     const reprintConfirm = await Swal.fire({
                         title: 'All Items Already Printed',
@@ -1465,12 +1482,24 @@
                 const data = await res.json();
                 if (data.success) {
                     closePaymentModal();
-                    // Open thermal print popup
-                    window.open(data.print_url, '_blank', 'width=400,height=600');
+                    
+                    const hasNetworkDirect = data.direct_prints && data.direct_prints.some(p => p.success);
+                    const hasBrowserPrint = !data.counter_printers || data.counter_printers.some(p => p.connection_type === 'browser') || !hasNetworkDirect;
+
+                    if (hasBrowserPrint && data.print_url) {
+                        window.open(data.print_url, '_blank', 'width=400,height=600');
+                    }
+
+                    let extraInfo = '';
+                    if (hasNetworkDirect) {
+                        const directNames = data.direct_prints.filter(p => p.success).map(p => p.printer).join(', ');
+                        extraInfo = `\n(Printed & cash drawer triggered on: ${directNames})`;
+                    }
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Payment Completed',
-                        text: data.message,
+                        text: (data.message || 'Payment completed successfully!') + extraInfo,
                         confirmButtonColor: '#ea580c',
                         timer: 2500,
                         showConfirmButton: true

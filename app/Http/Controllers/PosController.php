@@ -16,6 +16,7 @@ use App\Models\Setting;
 use App\Services\BillCalculationService;
 use App\Services\InventoryService;
 use App\Services\InvoiceNumberService;
+use App\Services\PrinterProfileService;
 use App\Services\ReceiptPrintService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,10 @@ class PosController extends Controller
             $activeBill = Bill::with(['items.addons', 'table', 'waiter'])->find($request->bill_id);
         }
 
+        $printerProfiles = PrinterProfileService::getAllProfiles();
+        $kitchenPrinters = PrinterProfileService::getKitchenPrinters();
+        $counterPrinters = PrinterProfileService::getCounterPrinters();
+
         return view('pos.index', compact(
             'categories',
             'tables',
@@ -70,7 +75,10 @@ class PosController extends Controller
             'taxType',
             'defaultGst',
             'printerType',
-            'activeBill'
+            'activeBill',
+            'printerProfiles',
+            'kitchenPrinters',
+            'counterPrinters'
         ));
     }
 
@@ -492,12 +500,30 @@ class PosController extends Controller
                 description: "Bill #{$bill->invoice_number} completed for ₹{$bill->grand_total} via " . implode(', ', array_column($validated['payments'], 'payment_method'))
             );
 
+            // 9. Hardware Counter Printer Routing
+            $counterProfiles = PrinterProfileService::getCounterPrinters();
+            $directPrintStatus = [];
+            foreach ($counterProfiles as $cProf) {
+                if (($cProf['connection_type'] ?? '') === 'network' && !empty($cProf['ip_address'])) {
+                    $receiptData = $this->receiptPrintService->prepareReceipt($bill);
+                    $escpos = PrinterProfileService::generateReceiptEscpos($receiptData, $cProf);
+                    $res = PrinterProfileService::printRawEscpos($cProf['ip_address'], (int) ($cProf['port'] ?? 9100), $escpos);
+                    $directPrintStatus[] = [
+                        'printer' => $cProf['name'],
+                        'success' => $res['success'],
+                        'message' => $res['message'],
+                    ];
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => "Bill #{$bill->invoice_number} completed successfully!",
                 'bill_id' => $bill->id,
                 'invoice_number' => $bill->invoice_number,
                 'print_url' => route('print.bill', ['bill' => $bill->id]),
+                'counter_printers' => $counterProfiles,
+                'direct_prints' => $directPrintStatus,
             ]);
         });
     }
@@ -1065,6 +1091,21 @@ class PosController extends Controller
                 description: "KOT #{$bill->kot_count} printed for Table {$table->table_number} (" . count($kotItemsToPrint) . " new items)"
             );
 
+            // Hardware Kitchen Printer Routing
+            $kitchenProfiles = PrinterProfileService::getKitchenPrinters();
+            $directPrintStatus = [];
+            foreach ($kitchenProfiles as $kProf) {
+                if (($kProf['connection_type'] ?? '') === 'network' && !empty($kProf['ip_address'])) {
+                    $escpos = PrinterProfileService::generateKotEscpos($kotBatchData, $kProf);
+                    $res = PrinterProfileService::printRawEscpos($kProf['ip_address'], (int) ($kProf['port'] ?? 9100), $escpos);
+                    $directPrintStatus[] = [
+                        'printer' => $kProf['name'],
+                        'success' => $res['success'],
+                        'message' => $res['message'],
+                    ];
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => "KOT #{$bill->kot_count} generated with " . count($kotItemsToPrint) . " new item(s) for Table {$table->table_number}!",
@@ -1073,6 +1114,8 @@ class PosController extends Controller
                 'kot_number' => $bill->kot_count,
                 'new_items_count' => count($kotItemsToPrint),
                 'kot_print_url' => route('pos.kot.print', ['bill' => $bill->id, 'kot' => $bill->kot_count]),
+                'kitchen_printers' => $kitchenProfiles,
+                'direct_prints' => $directPrintStatus,
             ]);
         });
     }

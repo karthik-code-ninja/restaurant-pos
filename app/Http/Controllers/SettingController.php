@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Setting;
+use App\Services\PrinterProfileService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,9 @@ class SettingController extends Controller
     {
         $settings = Setting::pluck('value', 'key')->toArray();
 
-        return view('settings.index', compact('settings'));
+        $printerProfiles = PrinterProfileService::getAllProfiles();
+
+        return view('settings.index', compact('settings', 'printerProfiles'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -103,5 +106,58 @@ class SettingController extends Controller
         );
 
         return back()->with('success', 'Restaurant and application settings updated successfully!');
+    }
+
+    public function savePrinterProfile(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['nullable', 'string', 'max:50'],
+            'name' => ['required', 'string', 'max:100'],
+            'purpose' => ['required', 'in:kitchen,counter,bar,both'],
+            'connection_type' => ['required', 'in:browser,network,driver'],
+            'ip_address' => ['nullable', 'string', 'max:50'],
+            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'driver_name' => ['nullable', 'string', 'max:100'],
+            'paper_width' => ['required', 'in:58mm,80mm'],
+            'copies' => ['required', 'integer', 'min:1', 'max:5'],
+            'auto_cut' => ['nullable', 'boolean'],
+            'open_cash_drawer' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $profile = PrinterProfileService::saveProfile($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Printer profile '{$profile['name']}' saved successfully!",
+                'profile' => $profile,
+            ]);
+        }
+
+        return back()->with('success', "Printer profile '{$profile['name']}' saved successfully!");
+    }
+
+    public function deletePrinterProfile(string $id, Request $request)
+    {
+        $deleted = PrinterProfileService::deleteProfile($id);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => $deleted,
+                'message' => $deleted ? 'Printer profile removed successfully.' : 'Profile not found.',
+            ]);
+        }
+
+        return back()->with($deleted ? 'success' : 'error', $deleted ? 'Printer profile removed.' : 'Profile not found.');
+    }
+
+    public function testPrinterProfile(Request $request)
+    {
+        $profileId = $request->input('profile_id');
+        $result = PrinterProfileService::testPrint((string) $profileId);
+
+        return response()->json($result);
     }
 }

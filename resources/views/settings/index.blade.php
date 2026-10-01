@@ -92,21 +92,132 @@
         </div>
     </div>
 
-    <!-- 3. Thermal Printer & POS Receipt -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div class="border-b border-slate-100 pb-3 flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm">
-                <i class="fa-solid fa-print"></i>
+    <!-- 3. Hardware Printer Profiles & Purpose Routing -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm">
+                    <i class="fa-solid fa-print"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Hardware Printer Profiles & Purpose Routing</h3>
+                    <p class="text-[11px] text-slate-400">Connect multiple physical thermal printers and set purpose: Kitchen (KOT), Cashier Counter, or Bar</p>
+                </div>
             </div>
-            <div>
-                <h3 class="text-sm font-bold text-slate-800">Thermal Printer & Receipt Template</h3>
-                <p class="text-[11px] text-slate-400">Hardware paper width, automatic printing, and receipt headers</p>
-            </div>
+            <button type="button" onclick="openAddPrinterModal()" class="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Printer Profile</span>
+            </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Profiles List Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="printerProfilesContainer">
+            @forelse($printerProfiles as $prof)
+            <div class="border {{ !empty($prof['is_active']) ? 'border-slate-200 bg-white' : 'border-slate-200/60 bg-slate-50/50 opacity-70' }} rounded-xl p-4 flex flex-col justify-between shadow-xs hover:border-orange-300 transition">
+                <div>
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-receipt text-slate-400 text-xs"></i>
+                                {{ $prof['name'] }}
+                            </h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">{{ $prof['notes'] ?: 'No location notes' }}</p>
+                        </div>
+
+                        <!-- Purpose Badge -->
+                        @if(($prof['purpose'] ?? '') === 'kitchen')
+                            <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 shrink-0">
+                                <i class="fa-solid fa-utensils"></i> Kitchen KOT
+                            </span>
+                        @elseif(($prof['purpose'] ?? '') === 'counter')
+                            <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0">
+                                <i class="fa-solid fa-cash-register"></i> Billing Counter
+                            </span>
+                        @elseif(($prof['purpose'] ?? '') === 'bar')
+                            <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1 shrink-0">
+                                <i class="fa-solid fa-wine-glass"></i> Bar Station
+                            </span>
+                        @else
+                            <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1 shrink-0">
+                                <i class="fa-solid fa-layer-group"></i> All-in-One
+                            </span>
+                        @endif
+                    </div>
+
+                    <!-- Specs details -->
+                    <div class="grid grid-cols-2 gap-2 text-xs py-2 border-t border-b border-slate-100 my-2">
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Connection Mode</span>
+                            @if(($prof['connection_type'] ?? '') === 'network')
+                                <span class="font-bold text-indigo-700 flex items-center gap-1">
+                                    <i class="fa-solid fa-network-wired text-[10px]"></i>
+                                    {{ $prof['ip_address'] ?? '127.0.0.1' }}:{{ $prof['port'] ?? 9100 }}
+                                </span>
+                            @elseif(($prof['connection_type'] ?? '') === 'driver')
+                                <span class="font-bold text-sky-700 flex items-center gap-1">
+                                    <i class="fa-solid fa-desktop text-[10px]"></i>
+                                    {{ $prof['driver_name'] ?? 'OS Printer' }}
+                                </span>
+                            @else
+                                <span class="font-bold text-slate-700 flex items-center gap-1">
+                                    <i class="fa-solid fa-window-maximize text-[10px]"></i>
+                                    Browser Pop-up
+                                </span>
+                            @endif
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-semibold">Paper & Copies</span>
+                            <span class="font-bold text-slate-800">
+                                {{ $prof['paper_width'] ?? '80mm' }} &bull; {{ $prof['copies'] ?? 1 }} copy
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Features Pills -->
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        @if(!empty($prof['auto_cut']))
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold"><i class="fa-solid fa-scissors mr-0.5"></i> Auto-Cut</span>
+                        @endif
+                        @if(!empty($prof['open_cash_drawer']))
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200"><i class="fa-solid fa-vault mr-0.5"></i> Drawer Kick</span>
+                        @endif
+                        @if(!empty($prof['is_active']))
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-green-100 text-green-800 font-bold"><i class="fa-solid fa-circle-check mr-0.5"></i> Active</span>
+                        @else
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-bold">Disabled</span>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Card Actions -->
+                <div class="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
+                    <button type="button" onclick="testPrinterProfile('{{ $prof['id'] }}')" class="px-2.5 py-1 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:scale-95 transition flex items-center gap-1">
+                        <i class="fa-solid fa-bolt"></i> Test Print
+                    </button>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick='editPrinterProfile(@json($prof))' class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 active:scale-95 transition flex items-center gap-1">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                        </button>
+                        <button type="button" onclick="deletePrinterProfile('{{ $prof['id'] }}', '{{ addslashes($prof['name']) }}')" class="px-2.5 py-1 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 active:scale-95 transition flex items-center gap-1">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            @empty
+            <div class="col-span-2 py-8 text-center text-slate-400">
+                <i class="fa-solid fa-print text-2xl mb-1 text-slate-300"></i>
+                <p class="text-xs font-bold">No hardware printer profiles created yet.</p>
+                <p class="text-[11px] text-slate-400">Click "+ Add Printer Profile" above to configure your Kitchen and Counter printers.</p>
+            </div>
+            @endforelse
+        </div>
+
+        <!-- Receipt Header, Footer, and Copy Options -->
+        <div class="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Receipt Paper Roll Width *</label>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Default Receipt Paper Roll Width *</label>
                 <select name="printer_type" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-slate-900">
                     <option value="80mm" {{ ($settings['printer_type'] ?? '') === '80mm' ? 'selected' : '' }}>80mm Standard POS Thermal Paper</option>
                     <option value="58mm" {{ ($settings['printer_type'] ?? '') === '58mm' ? 'selected' : '' }}>58mm Compact / Mobile Thermal Paper</option>
@@ -347,4 +458,309 @@
         </button>
     </div>
 </form>
+
+<!-- MODAL: Add / Edit Printer Profile -->
+<div id="printerProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
+        <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
+            <div>
+                <h3 class="text-sm font-bold flex items-center gap-2" id="printerModalTitle">
+                    <i class="fa-solid fa-print text-orange-400"></i>
+                    <span>Configure Printer Profile</span>
+                </h3>
+                <p class="text-[11px] text-slate-400">Assign hardware device and routing purpose</p>
+            </div>
+            <button type="button" onclick="closePrinterModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition active:scale-90"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form id="printerProfileForm" onsubmit="savePrinterProfileAjax(event)" class="p-5 space-y-3.5 overflow-y-auto flex-1 text-xs">
+            <input type="hidden" id="profId" name="id">
+
+            <div>
+                <label class="block font-bold text-slate-700 uppercase mb-1">Profile / Printer Name *</label>
+                <input type="text" id="profName" name="name" required placeholder="e.g. Kitchen Thermal 80mm or Cashier Counter POS" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-orange-500">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Assigned Purpose *</label>
+                    <select id="profPurpose" name="purpose" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-orange-500">
+                        <option value="kitchen">Kitchen (KOT - Order Ticket)</option>
+                        <option value="counter">Counter (Customer Bill & Drawer)</option>
+                        <option value="bar">Bar (Drinks & Beverage Station)</option>
+                        <option value="both">Both (All-in-One KOT + Bill)</option>
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">Determines whether KOT or Pay & Settle prints here</p>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Connection Method *</label>
+                    <select id="profConnection" name="connection_type" onchange="toggleConnectionFields()" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-orange-500">
+                        <option value="browser">Browser Print Window (Standard)</option>
+                        <option value="network">Direct Network (LAN / Wi-Fi Socket)</option>
+                        <option value="driver">Local Driver / QZ Tray (Silent USB)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Network Specific Fields -->
+            <div id="networkFieldsGroup" class="hidden p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-indigo-900">Network Printer Settings (ESC/POS)</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="col-span-2">
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">Printer IP Address</label>
+                        <input type="text" id="profIp" name="ip_address" placeholder="192.168.1.200" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">Port</label>
+                        <input type="number" id="profPort" name="port" value="9100" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono">
+                    </div>
+                </div>
+                <p class="text-[10px] text-indigo-700">Enter the local static IP assigned to your Ethernet/Wi-Fi thermal printer (Default port: 9100).</p>
+            </div>
+
+            <!-- Driver Specific Fields -->
+            <div id="driverFieldsGroup" class="hidden p-3 bg-sky-50/70 border border-sky-200 rounded-xl space-y-2">
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-sky-900">OS Driver / QZ Tray Settings</span>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">Installed Windows/OS Printer Name</label>
+                    <input type="text" id="profDriverName" name="driver_name" placeholder="e.g. Kitchen_Printer or EPSON TM-T82" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs">
+                </div>
+                <p class="text-[10px] text-sky-700">Exact name of the printer as shown in Windows Control Panel / Printers & Scanners.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Paper Roll Width</label>
+                    <select id="profPaper" name="paper_width" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium">
+                        <option value="80mm">80mm Standard POS</option>
+                        <option value="58mm">58mm Compact / Mobile</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Copies to Print</label>
+                    <input type="number" id="profCopies" name="copies" min="1" max="5" value="1" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold">
+                </div>
+            </div>
+
+            <div class="space-y-2 pt-2 border-t border-slate-100">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="profAutoCut" name="auto_cut" value="1" checked class="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500">
+                    <span class="font-semibold text-slate-700">Auto-Cut paper after printing ticket</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="profCashDrawer" name="open_cash_drawer" value="1" class="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500">
+                    <span class="font-semibold text-slate-700">Kick / Open Cash Drawer (typically for Counter printer)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="profActive" name="is_active" value="1" checked class="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500">
+                    <span class="font-semibold text-slate-700">Enable this printer profile</span>
+                </label>
+            </div>
+
+            <div>
+                <label class="block font-bold text-slate-700 uppercase mb-1">Notes / Physical Location</label>
+                <input type="text" id="profNotes" name="notes" placeholder="e.g. Inside main hot kitchen above prep counter" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" onclick="closePrinterModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+                <button type="submit" id="btnSavePrinterProf" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md transition">Save Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    function openAddPrinterModal() {
+        document.getElementById('printerModalTitle').innerHTML = '<i class="fa-solid fa-plus text-orange-400"></i><span>Add New Printer Profile</span>';
+        document.getElementById('profId').value = '';
+        document.getElementById('profName').value = '';
+        document.getElementById('profPurpose').value = 'kitchen';
+        document.getElementById('profConnection').value = 'network';
+        document.getElementById('profIp').value = '192.168.1.200';
+        document.getElementById('profPort').value = '9100';
+        document.getElementById('profDriverName').value = '';
+        document.getElementById('profPaper').value = '80mm';
+        document.getElementById('profCopies').value = '1';
+        document.getElementById('profAutoCut').checked = true;
+        document.getElementById('profCashDrawer').checked = false;
+        document.getElementById('profActive').checked = true;
+        document.getElementById('profNotes').value = '';
+
+        toggleConnectionFields();
+        document.getElementById('printerProfileModal').classList.remove('hidden');
+    }
+
+    function editPrinterProfile(prof) {
+        document.getElementById('printerModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-orange-400"></i><span>Edit Printer Profile</span>';
+        document.getElementById('profId').value = prof.id || '';
+        document.getElementById('profName').value = prof.name || '';
+        document.getElementById('profPurpose').value = prof.purpose || 'kitchen';
+        document.getElementById('profConnection').value = prof.connection_type || 'browser';
+        document.getElementById('profIp').value = prof.ip_address || '192.168.1.100';
+        document.getElementById('profPort').value = prof.port || 9100;
+        document.getElementById('profDriverName').value = prof.driver_name || '';
+        document.getElementById('profPaper').value = prof.paper_width || '80mm';
+        document.getElementById('profCopies').value = prof.copies || 1;
+        document.getElementById('profAutoCut').checked = !!prof.auto_cut;
+        document.getElementById('profCashDrawer').checked = !!prof.open_cash_drawer;
+        document.getElementById('profActive').checked = prof.is_active !== false && prof.is_active !== 0;
+        document.getElementById('profNotes').value = prof.notes || '';
+
+        toggleConnectionFields();
+        document.getElementById('printerProfileModal').classList.remove('hidden');
+    }
+
+    function closePrinterModal() {
+        document.getElementById('printerProfileModal').classList.add('hidden');
+    }
+
+    function toggleConnectionFields() {
+        const conn = document.getElementById('profConnection').value;
+        const netGroup = document.getElementById('networkFieldsGroup');
+        const drvGroup = document.getElementById('driverFieldsGroup');
+
+        if (conn === 'network') {
+            netGroup.classList.remove('hidden');
+            drvGroup.classList.add('hidden');
+        } else if (conn === 'driver') {
+            netGroup.classList.add('hidden');
+            drvGroup.classList.remove('hidden');
+        } else {
+            netGroup.classList.add('hidden');
+            drvGroup.classList.add('hidden');
+        }
+    }
+
+    async function savePrinterProfileAjax(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSavePrinterProf');
+        btn.disabled = true;
+        btn.innerText = 'Saving...';
+
+        const payload = {
+            id: document.getElementById('profId').value || null,
+            name: document.getElementById('profName').value,
+            purpose: document.getElementById('profPurpose').value,
+            connection_type: document.getElementById('profConnection').value,
+            ip_address: document.getElementById('profIp').value,
+            port: parseInt(document.getElementById('profPort').value) || 9100,
+            driver_name: document.getElementById('profDriverName').value,
+            paper_width: document.getElementById('profPaper').value,
+            copies: parseInt(document.getElementById('profCopies').value) || 1,
+            auto_cut: document.getElementById('profAutoCut').checked ? 1 : 0,
+            open_cash_drawer: document.getElementById('profCashDrawer').checked ? 1 : 0,
+            is_active: document.getElementById('profActive').checked ? 1 : 0,
+            notes: document.getElementById('profNotes').value,
+        };
+
+        try {
+            const res = await fetch("{{ route('settings.printer-profiles.save') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                closePrinterModal();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Printer Profile Saved',
+                    text: data.message,
+                    timer: 1800,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not save profile.' });
+            }
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Network Error', text: 'Failed to communicate with server.' });
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Save Profile';
+        }
+    }
+
+    async function deletePrinterProfile(id, name) {
+        const confirm = await Swal.fire({
+            title: `Delete '${name}'?`,
+            text: 'Are you sure you want to remove this printer profile?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, Delete'
+        });
+
+        if (confirm.isConfirmed) {
+            try {
+                const res = await fetch(`{{ url('settings/printer-profiles') }}/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: 'Deleted', text: data.message, timer: 1500, showConfirmButton: false }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to delete printer profile.' });
+            }
+        }
+    }
+
+    async function testPrinterProfile(id) {
+        Swal.fire({
+            title: 'Testing Printer...',
+            text: 'Sending test print command to target hardware device.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const res = await fetch("{{ route('settings.printer-profiles.test') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ profile_id: id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Test Passed!',
+                    text: data.message
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Test Failed',
+                    text: data.message || 'Printer failed to respond.'
+                });
+            }
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Test Failed', text: 'Could not connect to printer test endpoint.' });
+        }
+    }
+</script>
 @endsection

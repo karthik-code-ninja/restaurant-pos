@@ -187,6 +187,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('settings')->name('settings.')->middleware('permission:settings.manage')->group(function () {
         Route::get('/', [SettingController::class, 'index'])->name('index');
         Route::post('/', [SettingController::class, 'update'])->name('update');
+        Route::post('/printer-profiles', [SettingController::class, 'savePrinterProfile'])->name('printer-profiles.save');
+        Route::delete('/printer-profiles/{id}', [SettingController::class, 'deletePrinterProfile'])->name('printer-profiles.delete');
+        Route::post('/printer-profiles/test', [SettingController::class, 'testPrinterProfile'])->name('printer-profiles.test');
     });
 
     // 13. Backup & Audit
