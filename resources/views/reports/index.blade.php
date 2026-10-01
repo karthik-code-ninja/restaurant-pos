@@ -67,8 +67,8 @@
                 <i class="fa-solid fa-credit-card"></i>
             </div>
             <div>
-                <h4 class="font-bold text-slate-800 text-sm group-hover:text-orange-600 transition">6. Payment-wise Sales Report</h4>
-                <p class="text-xs text-slate-500 mt-1">Total volume split across Cash, UPI, and Card transactions.</p>
+                <h4 class="font-bold text-slate-800 text-sm group-hover:text-orange-600 transition">6. Payment & Multi-Mode Sales</h4>
+                <p class="text-xs text-slate-500 mt-1">Itemized Cash, UPI, and Card splits with detailed multi-mode transaction breakdown.</p>
             </div>
         </a>
 

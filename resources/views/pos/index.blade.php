@@ -17,43 +17,79 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .touch-action-manipulation { touch-action: manipulation; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .smooth-scroll { -webkit-overflow-scrolling: touch; }
+        * { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden select-none">
 
-    <!-- Top POS Header -->
-    <header class="h-14 bg-slate-900 text-white flex items-center justify-between px-4 flex-shrink-0 z-20 shadow-md">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('dashboard') }}" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition" title="Back to Dashboard">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div class="flex items-center gap-2">
-                <span class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold">
-                    <i class="fa-solid fa-utensils text-sm"></i>
-                </span>
-                <span class="font-bold text-sm hidden sm:inline">{{ \App\Models\Setting::get('restaurant_name', 'RestroPOS') }}</span>
-            </div>
-            
-            <!-- Order Type Switcher -->
-            <div class="flex items-center bg-slate-800 p-0.5 rounded-lg text-xs font-semibold ml-2">
-                <button type="button" id="btnTypeTable" onclick="setOrderType('table')" class="px-3 py-1.5 rounded-md transition bg-orange-600 text-white shadow-sm">
-                    <i class="fa-solid fa-chair mr-1"></i> Table
-                </button>
-                <button type="button" id="btnTypeCounter" onclick="setOrderType('counter')" class="px-3 py-1.5 rounded-md transition text-slate-300 hover:text-white">
-                    <i class="fa-solid fa-store mr-1"></i> Counter / Takeaway
-                </button>
+    <!-- Top POS Header: Responsive Multi-Flex Layout -->
+    <header class="bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-14 flex-shrink-0 z-20 shadow-md gap-2 lg:gap-3">
+        <!-- Top Row on Mobile / Left Section on Desktop -->
+        <div class="flex items-center justify-between lg:justify-start gap-2 w-full lg:w-auto">
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <a href="{{ route('dashboard') }}" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition shrink-0 active:scale-95" title="Back to Dashboard">
+                    <i class="fa-solid fa-arrow-left text-xs sm:text-sm"></i>
+                </a>
+                
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold shrink-0">
+                        <i class="fa-solid fa-utensils text-xs sm:text-sm"></i>
+                    </span>
+                    <span class="font-bold text-xs sm:text-sm hidden xl:inline">{{ \App\Models\Setting::get('restaurant_name', 'RestroPOS') }}</span>
+                </div>
+                
+                <!-- Order Type Switcher -->
+                <div class="flex items-center bg-slate-800 p-0.5 rounded-lg text-[11px] sm:text-xs font-semibold ml-1 shrink-0">
+                    <button type="button" id="btnTypeTable" onclick="setOrderType('table')" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md transition bg-orange-600 text-white shadow-sm flex items-center gap-1">
+                        <i class="fa-solid fa-chair text-[10px] sm:text-xs"></i> <span>Table</span>
+                    </button>
+                    <button type="button" id="btnTypeCounter" onclick="setOrderType('counter')" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md transition text-slate-300 hover:text-white flex items-center gap-1">
+                        <i class="fa-solid fa-store text-[10px] sm:text-xs"></i> <span>Counter</span>
+                    </button>
+                </div>
+
+                <!-- Table Selector (Visible if Table mode) -->
+                <div id="tableSelectWrapper" class="flex items-center shrink-0">
+                    <select id="selectedTableId" onchange="onTableSelected()" class="bg-slate-800 text-white text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[105px] sm:max-w-none">
+                        <option value="">Table...</option>
+                        @foreach($tables as $tbl)
+                        <option value="{{ $tbl->id }}" data-number="{{ $tbl->table_number }}" {{ ((isset($activeBill) && $activeBill->table_id == $tbl->id) || request('table_id') == $tbl->id) ? 'selected' : '' }}>
+                            {{ $tbl->table_number }} ({{ $tbl->status }})
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
-            <!-- Table Selector (Visible if Table mode) -->
-            <div id="tableSelectWrapper" class="flex items-center">
-                <select id="selectedTableId" onchange="onTableSelected()" class="bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500">
-                    <option value="">Select Table...</option>
-                    @foreach($tables as $tbl)
-                    <option value="{{ $tbl->id }}" data-number="{{ $tbl->table_number }}" {{ ((isset($activeBill) && $activeBill->table_id == $tbl->id) || request('table_id') == $tbl->id) ? 'selected' : '' }}>
-                        {{ $tbl->table_number }} ({{ $tbl->status }})
-                    </option>
-                    @endforeach
-                </select>
+            <!-- Mobile-Only Action Icons in Top Row -->
+            <div class="flex items-center gap-1.5 lg:hidden shrink-0">
+                <button type="button" onclick="openHeldBillsModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-xs active:scale-95 transition" title="Held Bills">
+                    <i class="fa-solid fa-pause text-amber-400"></i>
+                </button>
+                <button type="button" onclick="openDraftsModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-xs active:scale-95 transition" title="Draft Orders">
+                    <i class="fa-solid fa-file-pen text-blue-400"></i>
+                </button>
+                <button type="button" onclick="toggleMobileCart()" class="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 transition">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span id="mobileCartHeaderCount" class="bg-white text-orange-600 px-1.5 py-0.2 rounded-full text-[10px] font-black">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search Bar + Waiter Selector: Full-width on mobile, center on desktop -->
+        <div class="w-full lg:flex-1 lg:max-w-md lg:mx-2 flex items-center gap-2">
+            <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i class="fa-solid fa-barcode text-xs"></i>
+                </span>
+                <input type="text" id="foodSearchInput" oninput="onSearchInput()" placeholder="Search food by name or code (FD101)..."
+                    class="w-full pl-9 pr-8 py-1.5 sm:py-2 lg:py-1.5 rounded-xl lg:rounded-lg bg-slate-800 text-white text-xs border border-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500">
+                <button type="button" onclick="clearSearch()" id="clearSearchBtn" class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-white hidden">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
             </div>
 
             <!-- Waiter / Staff Selector -->
@@ -67,10 +103,10 @@
                     $initialWaiterId = $currentUser->id;
                 }
             @endphp
-            <div id="waiterSelectWrapper" class="flex items-center">
-                <select id="selectedWaiterId" onchange="onWaiterSelected()" class="bg-slate-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[145px] sm:max-w-none">
+            <div id="waiterSelectWrapper" class="flex items-center shrink-0">
+                <select id="selectedWaiterId" onchange="onWaiterSelected()" class="bg-slate-800 text-white text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-1.5 sm:py-2 lg:py-1.5 rounded-xl lg:rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[105px] sm:max-w-[145px] lg:max-w-none">
                     @if($isAdmin)
-                        <option value="">Select Waiter...</option>
+                        <option value="">Staff...</option>
                         @foreach($waiters as $w)
                         <option value="{{ $w->id }}" data-name="{{ $w->name }}" {{ $initialWaiterId == $w->id ? 'selected' : '' }}>
                             {{ $w->name }} ({{ $w->role?->name ?? 'Staff' }})
@@ -87,22 +123,8 @@
             </div>
         </div>
 
-        <!-- Center Search Bar -->
-        <div class="flex-1 max-w-md mx-4">
-            <div class="relative">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <i class="fa-solid fa-barcode text-xs"></i>
-                </span>
-                <input type="text" id="foodSearchInput" oninput="onSearchInput()" placeholder="Search food by name or food code (e.g. FD101)..."
-                    class="w-full pl-9 pr-8 py-1.5 rounded-lg bg-slate-800 text-white text-xs border border-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500">
-                <button type="button" onclick="clearSearch()" id="clearSearchBtn" class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-white hidden">
-                    <i class="fa-solid fa-xmark text-xs"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Right Quick Actions -->
-        <div class="flex items-center gap-2">
+        <!-- Desktop-Only Quick Actions -->
+        <div class="hidden lg:flex items-center gap-2 shrink-0">
             <button type="button" onclick="openHeldBillsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-pause text-amber-400"></i>
                 <span class="hidden sm:inline">Held Bills</span>
@@ -113,15 +135,9 @@
                 <span class="hidden sm:inline">Drafts</span>
             </button>
 
-            <!-- Mobile Cart Button (Visible on screens < lg) -->
-            <button type="button" onclick="toggleMobileCart()" class="lg:hidden px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
-                <i class="fa-solid fa-cart-shopping"></i>
-                <span id="mobileCartHeaderCount" class="bg-white text-orange-600 px-1.5 py-0.2 rounded-full text-[10px] font-black">0</span>
-            </button>
+            <div class="h-6 w-px bg-slate-800 mx-1"></div>
 
-            <div class="h-6 w-px bg-slate-800 mx-1 hidden lg:block"></div>
-
-            <div class="text-right hidden md:block">
+            <div class="text-right">
                 <p class="text-xs font-bold text-white">{{ auth()->user()->name }}</p>
                 <p class="text-[10px] text-orange-400 font-medium">Cashier</p>
             </div>
@@ -159,7 +175,11 @@
         <!-- SECTION 2: Food Grid Area -->
         <div class="flex-1 bg-slate-50 flex flex-col overflow-hidden relative">
             <!-- Mobile Horizontal Category Chips -->
-            <div class="lg:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap z-10" id="mobileCategoriesBar">
+            <div class="lg:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap z-10 no-scrollbar smooth-scroll" id="mobileCategoriesBar">
+                <button type="button" id="btnMobVegFilter" onclick="toggleVegFilter()"
+                    class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border border-slate-200 text-slate-700 hover:bg-slate-100 flex items-center gap-1">
+                    <i class="fa-solid fa-leaf text-emerald-600"></i> Veg
+                </button>
                 <button type="button" onclick="selectCategory('all')" id="mob_cat_all"
                     class="px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 bg-orange-600 text-white shadow-sm mob-category-btn">
                     <i class="fa-solid fa-fire mr-1"></i> All Items
@@ -173,9 +193,9 @@
             </div>
 
             <!-- Active Search / Filter Status Banner -->
-            <div id="filterBanner" class="px-4 py-2 bg-white border-b border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+            <div id="filterBanner" class="px-3.5 sm:px-4 py-2 bg-white border-b border-slate-200 text-xs text-slate-500 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-700" id="currentCategoryTitle">All Items</span>
+                    <span class="font-bold text-slate-700 text-xs sm:text-sm" id="currentCategoryTitle">All Items</span>
                     <span class="text-[11px] text-slate-400" id="foodsCountBadge">Loading items...</span>
                 </div>
                 <div id="vegIndicator" class="hidden text-xs font-bold text-emerald-600 flex items-center gap-1">
@@ -183,40 +203,40 @@
                 </div>
             </div>
 
-            <!-- Food Items Grid -->
-            <div class="flex-1 overflow-y-auto p-4" id="foodsGrid">
+            <!-- Food Items Grid (Optimized with pb-28 on mobile so floating bar never covers items) -->
+            <div class="flex-1 overflow-y-auto p-2.5 sm:p-4 pb-28 lg:pb-4 smooth-scroll" id="foodsGrid">
                 <!-- Food items dynamically rendered by JavaScript -->
             </div>
         </div>
 
         <!-- Mobile Cart Backdrop -->
-        <div id="mobileCartBackdrop" onclick="toggleMobileCart()" class="fixed inset-0 bg-slate-900/60 z-30 hidden lg:hidden"></div>
+        <div id="mobileCartBackdrop" onclick="toggleMobileCart()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
 
-        <!-- SECTION 3: Current Bill / Cart Drawer -->
-        <div id="posCartPanel" class="fixed inset-y-0 right-0 w-full sm:w-96 z-40 bg-white border-l border-slate-200 flex flex-col shadow-2xl transform translate-x-full lg:translate-x-0 lg:static lg:w-96 lg:shadow-lg transition-transform duration-300 ease-in-out">
+        <!-- SECTION 3: Current Bill / Cart Drawer (Responsive on mobile) -->
+        <div id="posCartPanel" class="fixed inset-y-0 right-0 w-full sm:w-[420px] lg:w-96 z-40 bg-white border-l border-slate-200 flex flex-col shadow-2xl transform translate-x-full lg:translate-x-0 lg:static lg:shadow-lg transition-transform duration-300 ease-in-out">
             <!-- Cart Header -->
-            <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div class="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-shrink-0">
                 <div>
                     <div class="flex items-center gap-2">
                         <h3 class="text-sm font-bold text-slate-800">Current Order</h3>
                         <span id="cartOrderTypeBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700">Table</span>
                         <span id="activeBillIdDisplay" class="text-xs font-mono font-bold text-orange-600"></span>
                     </div>
-                    <p class="text-[11px] text-slate-500 font-medium" id="orderTargetDisplay">Table: None selected</p>
+                    <p class="text-[11px] text-slate-500 font-medium mt-0.5" id="orderTargetDisplay">Table: None selected</p>
                 </div>
 
-                <div class="flex items-center gap-1">
-                    <button type="button" onclick="clearCart()" title="Clear Current Cart" class="px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded font-semibold transition">
-                        <i class="fa-solid fa-rotate-left mr-1"></i> Clear
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="clearCart()" title="Clear Current Cart" class="px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50 active:scale-95 rounded-lg font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left text-[11px]"></i> Clear
                     </button>
-                    <button type="button" onclick="toggleMobileCart()" class="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition" title="Close Cart">
-                        <i class="fa-solid fa-xmark text-base"></i>
+                    <button type="button" onclick="toggleMobileCart()" class="lg:hidden w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 bg-slate-200/80 hover:bg-slate-300 active:scale-90 rounded-full transition" title="Close Cart">
+                        <i class="fa-solid fa-xmark text-sm"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Cart Items List (Scrollable) -->
-            <div class="flex-1 overflow-y-auto p-3 divide-y divide-slate-100" id="cartItemsList">
+            <div class="flex-1 overflow-y-auto p-3 divide-y divide-slate-100 smooth-scroll" id="cartItemsList">
                 <div id="emptyCartMessage" class="py-16 text-center text-slate-400">
                     <i class="fa-solid fa-cart-shopping text-3xl mb-2 text-slate-300 block"></i>
                     <p class="text-xs font-bold text-slate-600">Cart is Empty</p>
@@ -225,22 +245,22 @@
             </div>
 
             <!-- Cart Totals & Bill Summary (Bottom) -->
-            <div class="p-4 border-t border-slate-200 bg-slate-50 space-y-2.5">
-                <!-- Customer Details Accordion -->
+            <div class="p-3.5 sm:p-4 border-t border-slate-200 bg-slate-50 space-y-2 flex-shrink-0">
+                <!-- Customer Details Inputs -->
                 <div class="flex items-center gap-2 text-xs">
-                    <input type="text" id="custName" placeholder="Customer Name (optional)" class="w-1/2 px-2.5 py-1 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
-                    <input type="text" id="custPhone" placeholder="Phone Number" class="w-1/2 px-2.5 py-1 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                    <input type="text" id="custName" placeholder="Customer Name (optional)" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
+                    <input type="text" id="custPhone" placeholder="Phone Number" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
                 </div>
 
                 <!-- Discount Input -->
-                <div class="flex items-center justify-between text-xs pt-1">
-                    <div class="flex items-center gap-2">
+                <div class="flex items-center justify-between text-xs pt-0.5">
+                    <div class="flex items-center gap-1.5">
                         <span class="text-slate-500 font-medium">Discount:</span>
-                        <select id="discountType" onchange="triggerCalculation()" class="border border-slate-300 rounded px-1.5 py-0.5 text-xs">
+                        <select id="discountType" onchange="triggerCalculation()" class="border border-slate-300 rounded-md px-1.5 py-1 text-xs bg-white">
                             <option value="fixed">Fixed (₹)</option>
                             <option value="percentage">Percent (%)</option>
                         </select>
-                        <input type="number" id="discountValue" value="0" min="0" oninput="triggerCalculation()" class="w-16 border border-slate-300 rounded px-1.5 py-0.5 text-xs text-right font-bold">
+                        <input type="number" id="discountValue" value="0" min="0" oninput="triggerCalculation()" class="w-16 border border-slate-300 rounded-md px-1.5 py-1 text-xs text-right font-bold bg-white">
                     </div>
                     <span id="discountAmountDisplay" class="font-bold text-rose-600">-₹0.00</span>
                 </div>
@@ -269,7 +289,7 @@
                 <div class="p-3 rounded-xl bg-slate-900 text-white flex items-center justify-between shadow-inner">
                     <div>
                         <p class="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Grand Total</p>
-                        <h4 id="grandTotalDisplay" class="text-2xl font-black text-white">₹0.00</h4>
+                        <h4 id="grandTotalDisplay" class="text-xl sm:text-2xl font-black text-white">₹0.00</h4>
                     </div>
                     <div class="text-right">
                         <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-bold border border-emerald-800">Tax Verified</span>
@@ -278,22 +298,22 @@
 
                 <!-- Bottom POS Action Buttons with KOT -->
                 <div class="grid grid-cols-5 gap-1.5 pt-1">
-                    <button type="button" onclick="printKot()" id="btnKotPrint" class="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Send to Kitchen Printer">
+                    <button type="button" onclick="printKot()" id="btnKotPrint" class="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Send to Kitchen Printer">
                         <i class="fa-solid fa-fire-burner"></i>
                         <span>KOT</span>
                     </button>
 
-                    <button type="button" onclick="saveAsHeld()" class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Hold Order">
+                    <button type="button" onclick="saveAsHeld()" class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Hold Order">
                         <i class="fa-solid fa-pause"></i>
                         <span>Hold</span>
                     </button>
 
-                    <button type="button" onclick="saveAsDraft()" class="py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Save Draft">
+                    <button type="button" onclick="saveAsDraft()" class="py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition" title="Save Draft">
                         <i class="fa-solid fa-file-pen"></i>
                         <span>Draft</span>
                     </button>
 
-                    <button type="button" onclick="openPaymentModal()" class="col-span-2 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-orange-600/30 transition">
+                    <button type="button" onclick="openPaymentModal()" class="col-span-2 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-orange-600/30 transition">
                         <i class="fa-solid fa-credit-card"></i>
                         <span>Pay & Settle</span>
                     </button>
@@ -303,8 +323,8 @@
     </div>
 
     <!-- Mobile Sticky Bottom Floating Cart Bar -->
-    <div id="mobileBottomBar" class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between z-20 shadow-2xl">
-        <div onclick="toggleMobileCart()" class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+    <div id="mobileBottomBar" class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 text-white px-3.5 py-2.5 flex items-center justify-between z-20 shadow-2xl">
+        <div onclick="toggleMobileCart()" class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 active:scale-98 transition">
             <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
                 <i class="fa-solid fa-cart-shopping"></i>
             </div>
@@ -314,36 +334,36 @@
                     <span class="text-slate-500">&bull;</span>
                     <span id="mobileBottomTotal" class="font-black text-xs text-amber-400">₹0.00</span>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-0.5">Tap to view cart</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Tap to review cart</p>
             </div>
         </div>
         <div class="flex items-center gap-1.5 shrink-0">
-            <button type="button" onclick="printKot()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition" title="Print Kitchen Order Ticket">
+            <button type="button" onclick="printKot()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition" title="Print Kitchen Order Ticket">
                 <i class="fa-solid fa-fire-burner"></i> KOT
             </button>
-            <button type="button" onclick="toggleMobileCart()" class="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-extrabold flex items-center gap-1 shadow-sm transition">
+            <button type="button" onclick="toggleMobileCart()" class="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-lg text-xs font-extrabold flex items-center gap-1 shadow-sm transition">
                 Cart <i class="fa-solid fa-chevron-right text-[10px]"></i>
             </button>
         </div>
     </div>
 
-    <!-- MODAL 1: Payment Checkout Modal -->
-    <div id="paymentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+    <!-- MODAL 1: Payment Checkout Modal (Responsive Bottom Sheet / Modal) -->
+    <div id="paymentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2.5 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[94vh] flex flex-col overflow-hidden">
+            <div class="px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
                 <div>
-                    <h3 class="text-base font-bold">Process Bill Payment</h3>
+                    <h3 class="text-sm sm:text-base font-bold">Process Bill Payment</h3>
                     <p class="text-xs text-orange-400" id="payModalInvoiceDisplay">New Bill Settlement</p>
                 </div>
-                <button type="button" onclick="closePaymentModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <button type="button" onclick="closePaymentModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition active:scale-90"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
 
-            <div class="p-6 space-y-4">
+            <div class="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 smooth-scroll">
                 <!-- Amount Due Banner -->
-                <div class="p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-center justify-between">
+                <div class="p-3.5 sm:p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-center justify-between">
                     <div>
-                        <span class="text-xs font-semibold text-orange-800 uppercase tracking-wider">Total Payable</span>
-                        <h3 id="payDueAmountDisplay" class="text-3xl font-black text-orange-950">₹0.00</h3>
+                        <span class="text-[10px] sm:text-xs font-semibold text-orange-800 uppercase tracking-wider">Total Payable</span>
+                        <h3 id="payDueAmountDisplay" class="text-2xl sm:text-3xl font-black text-orange-950">₹0.00</h3>
                     </div>
                     <div class="text-right text-xs text-orange-700 font-medium">
                         <span id="payDueItemsCount">0 items</span>
@@ -353,34 +373,34 @@
                 <!-- Payment Method Tabs -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Payment Method</label>
-                    <div class="grid grid-cols-4 gap-2">
-                        <button type="button" onclick="selectPayMethod('cash')" id="payTab_cash" class="pay-method-btn p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition">
+                    <div class="grid grid-cols-4 gap-1.5 sm:gap-2">
+                        <button type="button" onclick="selectPayMethod('cash')" id="payTab_cash" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
                             <i class="fa-solid fa-money-bill-wave text-base"></i>
                             <span>Cash</span>
                         </button>
-                        <button type="button" onclick="selectPayMethod('upi')" id="payTab_upi" class="pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition">
+                        <button type="button" onclick="selectPayMethod('upi')" id="payTab_upi" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
                             <i class="fa-solid fa-qrcode text-base"></i>
                             <span>UPI / QR</span>
                         </button>
-                        <button type="button" onclick="selectPayMethod('card')" id="payTab_card" class="pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition">
+                        <button type="button" onclick="selectPayMethod('card')" id="payTab_card" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
                             <i class="fa-solid fa-credit-card text-base"></i>
                             <span>Card</span>
                         </button>
-                        <button type="button" onclick="selectPayMethod('multimode')" id="payTab_multimode" class="pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition">
+                        <button type="button" onclick="selectPayMethod('multimode')" id="payTab_multimode" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-[11px] sm:text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
                             <i class="fa-solid fa-arrows-split-up-and-left text-base text-purple-600"></i>
-                            <span>Multimode</span>
+                            <span>Multi</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- Multimode (Split Pay) Area -->
-                <div id="multimodeDetailsArea" class="hidden space-y-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <div id="multimodeDetailsArea" class="hidden space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
                     <div class="flex items-center justify-between text-xs font-bold pb-2 border-b border-slate-200">
                         <span class="text-slate-700 uppercase">Split Tender (Cash + UPI)</span>
                         <span id="multiDueBadge" class="text-orange-600 font-mono">Due: ₹0.00</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
                         <div>
                             <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cash Portion (₹) *</label>
                             <div class="relative">
@@ -399,10 +419,10 @@
                     </div>
 
                     <div class="flex items-center justify-between gap-2 pt-0.5">
-                        <button type="button" onclick="autoFillMultiUpi()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
+                        <button type="button" onclick="autoFillMultiUpi()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
                             <i class="fa-solid fa-arrow-right text-indigo-500 mr-1"></i> Balance to UPI
                         </button>
-                        <button type="button" onclick="autoFillMultiCash()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
+                        <button type="button" onclick="autoFillMultiCash()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
                             <i class="fa-solid fa-arrow-left text-emerald-500 mr-1"></i> Balance to Cash
                         </button>
                     </div>
@@ -412,7 +432,7 @@
                         <input type="text" id="multiUpiRefInput" placeholder="Optional UPI transaction reference" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
                     </div>
 
-                    <div id="multiStatusBox" class="p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200">
+                    <div id="multiStatusBox" class="p-2.5 rounded-xl text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200">
                         <span>Total Entered: <span id="multiEnteredSum">₹0.00</span></span>
                         <span id="multiBalanceStatus">Balance: ₹0.00</span>
                     </div>
@@ -427,12 +447,12 @@
                     </div>
 
                     <!-- Quick Denominations -->
-                    <div class="flex items-center gap-2 mt-2">
-                        <button type="button" onclick="setTenderedExact()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">Exact</button>
-                        <button type="button" onclick="setTendered(100)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">₹100</button>
-                        <button type="button" onclick="setTendered(200)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">₹200</button>
-                        <button type="button" onclick="setTendered(500)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">₹500</button>
-                        <button type="button" onclick="setTendered(2000)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">₹2000</button>
+                    <div class="flex items-center flex-wrap gap-1.5 sm:gap-2 mt-2">
+                        <button type="button" onclick="setTenderedExact()" class="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-lg text-xs font-bold transition text-center">Exact</button>
+                        <button type="button" onclick="setTendered(100)" class="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-lg text-xs font-bold transition text-center">₹100</button>
+                        <button type="button" onclick="setTendered(200)" class="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-lg text-xs font-bold transition text-center">₹200</button>
+                        <button type="button" onclick="setTendered(500)" class="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-lg text-xs font-bold transition text-center">₹500</button>
+                        <button type="button" onclick="setTendered(2000)" class="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-lg text-xs font-bold transition text-center">₹2000</button>
                     </div>
 
                     <!-- Change Return Display -->
@@ -447,94 +467,95 @@
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Transaction Ref / UTR / Approval Code</label>
                     <input type="text" id="payReferenceInput" placeholder="Optional transaction reference" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
                 </div>
+            </div>
 
-                <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
-                    <button type="button" onclick="closePaymentModal()" class="px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                    
-                    <button type="button" id="btnSubmitPayment" onclick="submitFinalPayment()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-extrabold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
-                        <i class="fa-solid fa-check-double"></i>
-                        <span>Complete & Print Bill</span>
-                    </button>
-                </div>
+            <!-- Modal Footer (Sticky) -->
+            <div class="p-3.5 sm:p-5 border-t border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
+                <button type="button" onclick="closePaymentModal()" class="px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 active:scale-95 transition">Cancel</button>
+                
+                <button type="button" id="btnSubmitPayment" onclick="submitFinalPayment()" class="px-5 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i>
+                    <span>Complete & Print Bill</span>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- MODAL 2: Add-ons Selector Popover Modal -->
-    <div id="addonsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+    <div id="addonsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
                 <h4 class="text-xs font-bold" id="addonsModalItemTitle">Select Add-ons</h4>
-                <button type="button" onclick="closeAddonsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="closeAddonsModal()" class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition active:scale-90"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-4 space-y-2 max-h-60 overflow-y-auto" id="addonsListContainer">
+            <div class="p-4 space-y-2 overflow-y-auto flex-1 smooth-scroll" id="addonsListContainer">
                 @foreach($addons as $addon)
-                <label class="flex items-center justify-between p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs">
+                <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs active:bg-slate-100 transition">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" value="{{ $addon->id }}" data-price="{{ $addon->price }}" data-name="{{ $addon->name }}" class="addon-checkbox rounded border-slate-300 text-orange-600 focus:ring-orange-500">
+                        <input type="checkbox" value="{{ $addon->id }}" data-price="{{ $addon->price }}" data-name="{{ $addon->name }}" class="addon-checkbox rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4">
                         <span class="font-bold text-slate-800">{{ $addon->name }}</span>
                     </div>
-                    <span class="font-mono text-slate-600">+₹{{ number_format($addon->price, 2) }}</span>
+                    <span class="font-mono text-slate-600 font-bold">+₹{{ number_format($addon->price, 2) }}</span>
                 </label>
                 @endforeach
             </div>
-            <div class="p-3 border-t border-slate-100 flex justify-end">
-                <button type="button" onclick="saveAddonsForCurrentItem()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-bold">Apply Add-ons</button>
+            <div class="p-3 border-t border-slate-100 flex justify-end flex-shrink-0 bg-slate-50">
+                <button type="button" onclick="saveAddonsForCurrentItem()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-sm transition">Apply Add-ons</button>
             </div>
         </div>
     </div>
 
     <!-- MODAL 3: Held Bills Modal -->
-    <div id="heldBillsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div class="px-6 py-4 bg-amber-900 text-white flex items-center justify-between">
+    <div id="heldBillsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-5 sm:px-6 py-4 bg-amber-900 text-white flex items-center justify-between flex-shrink-0">
                 <h3 class="text-sm font-bold flex items-center gap-2">
                     <i class="fa-solid fa-pause"></i>
                     <span>Held Bills Queue</span>
                 </h3>
-                <button type="button" onclick="closeHeldBillsModal()" class="text-amber-200 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="closeHeldBillsModal()" class="w-8 h-8 rounded-full bg-amber-950 flex items-center justify-center text-amber-200 hover:text-white transition active:scale-90"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-6 max-h-96 overflow-y-auto" id="heldBillsList">
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1 smooth-scroll" id="heldBillsList">
                 <div class="text-center py-8 text-slate-400 text-xs">Loading held bills...</div>
             </div>
         </div>
     </div>
 
     <!-- MODAL 4: Draft Bills Modal -->
-    <div id="draftBillsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+    <div id="draftBillsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-5 sm:px-6 py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
                 <h3 class="text-sm font-bold flex items-center gap-2">
                     <i class="fa-solid fa-file-pen"></i>
                     <span>Saved Draft Orders</span>
                 </h3>
-                <button type="button" onclick="closeDraftsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="closeDraftsModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition active:scale-90"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-6 max-h-96 overflow-y-auto" id="draftBillsList">
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1 smooth-scroll" id="draftBillsList">
                 <div class="text-center py-8 text-slate-400 text-xs">Loading drafts...</div>
             </div>
         </div>
     </div>
 
     <!-- MODAL 5: Cancel Bill Confirmation Modal -->
-    <div id="cancelModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div class="px-6 py-4 bg-rose-900 text-white flex items-center justify-between">
+    <div id="cancelModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-5 sm:px-6 py-4 bg-rose-900 text-white flex items-center justify-between flex-shrink-0">
                 <h3 class="text-sm font-bold flex items-center gap-2">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                     <span>Cancel Active Bill</span>
                 </h3>
-                <button type="button" onclick="document.getElementById('cancelModal').classList.add('hidden')" class="text-rose-200 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="document.getElementById('cancelModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-rose-950 flex items-center justify-center text-rose-200 hover:text-white transition active:scale-90"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 smooth-scroll">
                 <p class="text-xs text-slate-600">Are you sure you want to cancel this bill? This will restore any deducted inventory and release the dining table.</p>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cancellation Reason *</label>
                     <textarea id="cancelReasonInput" rows="3" required placeholder="Reason for cancellation..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-rose-500"></textarea>
                 </div>
                 <div class="pt-2 flex items-center justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('cancelModal').classList.add('hidden')" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600">No, Keep Bill</button>
-                    <button type="button" onclick="confirmCancelBill()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold">Yes, Cancel Bill</button>
+                    <button type="button" onclick="document.getElementById('cancelModal').classList.add('hidden')" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 active:scale-95">No, Keep Bill</button>
+                    <button type="button" onclick="confirmCancelBill()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl text-xs font-bold transition">Yes, Cancel Bill</button>
                 </div>
             </div>
         </div>
@@ -711,7 +732,7 @@
                 return;
             }
 
-            html += `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">`;
+            html += `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3">`;
 
             allItems.forEach(item => {
                 const isCombo = item.type === 'combo';
@@ -721,7 +742,7 @@
 
                 html += `
                     <button type="button" onclick="addToCart('${item.type}', ${item.id}, '${escapeQuotes(item.code)}', '${escapeQuotes(item.name)}', ${item.price})"
-                        class="bg-white p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md transition text-left flex flex-col justify-between active:scale-95 touch-action-manipulation group">
+                        class="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md transition text-left flex flex-col justify-between active:scale-95 touch-action-manipulation group shadow-xs">
                         
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
@@ -736,9 +757,9 @@
                             </h4>
                         </div>
 
-                        <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                            <span class="font-black text-slate-900 text-sm">${CURRENCY}${item.price.toFixed(2)}</span>
-                            <span class="w-6 h-6 rounded-lg bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition">
+                        <div class="mt-2.5 sm:mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span class="font-black text-slate-900 text-xs sm:text-sm">${CURRENCY}${item.price.toFixed(2)}</span>
+                            <span class="w-7 h-7 sm:w-6 sm:h-6 rounded-xl bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-xs">
                                 <i class="fa-solid fa-plus"></i>
                             </span>
                         </div>
@@ -780,12 +801,15 @@
             vegFilterOnly = !vegFilterOnly;
             const btn = document.getElementById('btnVegFilter');
             const ind = document.getElementById('vegIndicator');
+            const mobBtn = document.getElementById('btnMobVegFilter');
             if (vegFilterOnly) {
-                btn.className = 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold';
-                ind.classList.remove('hidden');
+                if (btn) btn.className = 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold';
+                if (mobBtn) mobBtn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-bold transition shrink-0 bg-emerald-600 text-white shadow-sm flex items-center gap-1';
+                if (ind) ind.classList.remove('hidden');
             } else {
-                btn.className = 'text-[10px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 font-bold hover:bg-slate-50';
-                ind.classList.add('hidden');
+                if (btn) btn.className = 'text-[10px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 font-bold hover:bg-slate-50';
+                if (mobBtn) mobBtn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shrink-0 border border-slate-200 flex items-center gap-1';
+                if (ind) ind.classList.add('hidden');
             }
             fetchFoods();
         }
@@ -991,16 +1015,16 @@
                                 ${addonsHtml}
                             </div>
                             
-                            <!-- Qty Controls -->
-                            <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white">
-                                <button type="button" onclick="updateCartQty(${index}, -1)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 font-bold text-xs">-</button>
-                                <span class="w-7 text-center font-bold text-xs text-slate-900">${item.quantity}</span>
-                                <button type="button" onclick="updateCartQty(${index}, 1)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 font-bold text-xs">+</button>
+                            <!-- Qty Controls: Touch-Friendly -->
+                            <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50 shadow-inner shrink-0">
+                                <button type="button" onclick="updateCartQty(${index}, -1)" class="w-7 sm:w-8 h-7 sm:h-8 flex items-center justify-center text-slate-700 hover:bg-white active:scale-90 font-black text-sm transition touch-action-manipulation">-</button>
+                                <span class="w-7 sm:w-8 text-center font-extrabold text-xs sm:text-sm text-slate-900">${item.quantity}</span>
+                                <button type="button" onclick="updateCartQty(${index}, 1)" class="w-7 sm:w-8 h-7 sm:h-8 flex items-center justify-center text-orange-600 hover:bg-white active:scale-90 font-black text-sm transition touch-action-manipulation">+</button>
                             </div>
 
-                            <span class="w-16 text-right font-black text-xs text-slate-900">${CURRENCY}${itemTotal}</span>
+                            <span class="w-16 text-right font-black text-xs sm:text-sm text-slate-900 shrink-0">${CURRENCY}${itemTotal}</span>
 
-                            <button type="button" onclick="removeCartItem(${index})" class="text-slate-300 hover:text-rose-500 p-1">
+                            <button type="button" onclick="removeCartItem(${index})" class="text-slate-300 hover:text-rose-500 active:scale-90 p-1.5 shrink-0" title="Remove Item">
                                 <i class="fa-solid fa-xmark text-xs"></i>
                             </button>
                         </div>

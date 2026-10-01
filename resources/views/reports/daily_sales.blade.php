@@ -38,27 +38,33 @@
             <table class="w-full text-left text-xs">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
-                        <th class="py-3 px-4">Date</th>
-                        <th class="py-3 px-4 text-center">Bills Count</th>
-                        <th class="py-3 px-4 text-right">Subtotal</th>
-                        <th class="py-3 px-4 text-right">Discount</th>
-                        <th class="py-3 px-4 text-right">GST Total</th>
-                        <th class="py-3 px-4 text-right">Net Grand Total</th>
+                        <th class="py-3 px-3">Date</th>
+                        <th class="py-3 px-3 text-center">Bills</th>
+                        <th class="py-3 px-3 text-right">Subtotal</th>
+                        <th class="py-3 px-3 text-right">Discount</th>
+                        <th class="py-3 px-3 text-right">GST Total</th>
+                        <th class="py-3 px-3 text-right text-emerald-800 bg-emerald-50/50">Cash (₹)</th>
+                        <th class="py-3 px-3 text-right text-indigo-800 bg-indigo-50/50">UPI (₹)</th>
+                        <th class="py-3 px-3 text-right text-blue-800 bg-blue-50/50">Card (₹)</th>
+                        <th class="py-3 px-3 text-right font-black">Net Total</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($report as $row)
                     <tr class="hover:bg-slate-50">
-                        <td class="py-3 px-4 font-bold text-slate-900">{{ date('d M Y (D)', strtotime($row->sale_date)) }}</td>
-                        <td class="py-3 px-4 text-center font-bold text-slate-700">{{ $row->total_bills }}</td>
-                        <td class="py-3 px-4 text-right text-slate-600">{{ $currency }}{{ number_format($row->total_subtotal, 2) }}</td>
-                        <td class="py-3 px-4 text-right text-rose-600 font-medium">-{{ $currency }}{{ number_format($row->total_discount, 2) }}</td>
-                        <td class="py-3 px-4 text-right text-slate-700 font-semibold">{{ $currency }}{{ number_format($row->total_tax, 2) }}</td>
-                        <td class="py-3 px-4 text-right font-black text-slate-900 text-sm">{{ $currency }}{{ number_format($row->total_sales, 2) }}</td>
+                        <td class="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">{{ date('d M Y (D)', strtotime($row->sale_date)) }}</td>
+                        <td class="py-3 px-3 text-center font-bold text-slate-700">{{ $row->total_bills }}</td>
+                        <td class="py-3 px-3 text-right text-slate-600">{{ $currency }}{{ number_format($row->total_subtotal, 2) }}</td>
+                        <td class="py-3 px-3 text-right text-rose-600 font-medium">-{{ $currency }}{{ number_format($row->total_discount, 2) }}</td>
+                        <td class="py-3 px-3 text-right text-slate-700 font-semibold">{{ $currency }}{{ number_format($row->total_tax, 2) }}</td>
+                        <td class="py-3 px-3 text-right font-bold text-emerald-800 bg-emerald-50/20 whitespace-nowrap">{{ $currency }}{{ number_format($row->cash_total ?? 0, 2) }}</td>
+                        <td class="py-3 px-3 text-right font-bold text-indigo-800 bg-indigo-50/20 whitespace-nowrap">{{ $currency }}{{ number_format($row->upi_total ?? 0, 2) }}</td>
+                        <td class="py-3 px-3 text-right font-bold text-blue-800 bg-blue-50/20 whitespace-nowrap">{{ $currency }}{{ number_format($row->card_total ?? 0, 2) }}</td>
+                        <td class="py-3 px-3 text-right font-black text-slate-900 text-sm whitespace-nowrap">{{ $currency }}{{ number_format($row->total_sales, 2) }}</td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="py-8 text-center text-slate-400">No completed sales found in this period.</td>
+                        <td colspan="9" class="py-8 text-center text-slate-400">No completed sales found in this period.</td>
                     </tr>
                     @endforelse
                 </tbody>
