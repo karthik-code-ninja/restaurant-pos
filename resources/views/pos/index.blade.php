@@ -26,7 +26,7 @@
 <body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden select-none">
 
     <!-- Top POS Header: Responsive Multi-Flex Layout -->
-    <header class="bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-14 flex-shrink-0 z-20 shadow-md gap-2 lg:gap-3">
+    <header class="relative bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-14 flex-shrink-0 z-30 shadow-md gap-2 lg:gap-3">
         <!-- Top Row on Mobile / Left Section on Desktop -->
         <div class="flex items-center justify-between lg:justify-start gap-2 w-full lg:w-auto">
             <div class="flex items-center gap-1.5 sm:gap-2">
@@ -81,15 +81,33 @@
 
         <!-- Search Bar + Waiter Selector: Full-width on mobile, center on desktop -->
         <div class="w-full lg:flex-1 lg:max-w-md lg:mx-2 flex items-center gap-2">
-            <div class="relative flex-1">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+            <div class="relative flex-1" id="searchContainer">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 pointer-events-none">
                     <i class="fa-solid fa-barcode text-xs"></i>
                 </span>
-                <input type="text" id="foodSearchInput" oninput="onSearchInput()" placeholder="Search food by name or code (FD101)..."
+                <input type="text" id="foodSearchInput" oninput="onSearchInput()" onkeydown="onSearchKeyDown(event)" onfocus="onSearchFocus()" autocomplete="off" placeholder="Search food by name or code (FD101)..."
                     class="w-full pl-9 pr-8 py-1.5 sm:py-2 lg:py-1.5 rounded-xl lg:rounded-lg bg-slate-800 text-white text-xs border border-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500">
                 <button type="button" onclick="clearSearch()" id="clearSearchBtn" class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-white hidden">
                     <i class="fa-solid fa-xmark text-xs"></i>
                 </button>
+
+                <!-- Floating Search Results Dropdown -->
+                <div id="searchDropdown" class="absolute top-full left-0 right-0 sm:right-auto sm:w-[460px] mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden hidden z-50 transition-all duration-150">
+                    <!-- Dropdown Header Bar -->
+                    <div class="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px]">
+                        <span id="searchDropdownCount" class="font-bold text-slate-600">0 products found</span>
+                        <div class="hidden sm:flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                            <span><kbd class="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-sans font-bold">↑↓</kbd> navigate</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-sans font-bold">↵</kbd> add to cart</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-sans font-bold">esc</kbd> close</span>
+                        </div>
+                    </div>
+
+                    <!-- Dropdown List Items -->
+                    <div id="searchDropdownList" class="max-h-72 sm:max-h-96 overflow-y-auto divide-y divide-slate-100">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Waiter / Staff Selector -->
@@ -816,19 +834,326 @@
             fetchFoods();
         }
 
+        // 2.1 PRODUCT SEARCH DROPDOWN & INSTANT ADD TO CART
+        let searchDropdownItems = [];
+        let searchHighlightedIndex = -1;
         let searchDebounce = null;
+        let isSearchDropdownOpen = false;
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function onSearchInput() {
-            const query = document.getElementById('foodSearchInput').value;
-            document.getElementById('clearSearchBtn').classList.toggle('hidden', query.length === 0);
+            const input = document.getElementById('foodSearchInput');
+            const query = input ? input.value.trim() : '';
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) clearBtn.classList.toggle('hidden', query.length === 0);
+
             clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(fetchFoods, 200);
+
+            if (query.length === 0) {
+                hideSearchDropdown();
+                fetchFoods();
+                return;
+            }
+
+            showSearchDropdownLoading(query);
+
+            searchDebounce = setTimeout(() => {
+                performSearch(query);
+            }, 180);
+        }
+
+        async function performSearch(query) {
+            if (!query) return;
+
+            const params = new URLSearchParams({
+                category_id: selectedCategory,
+                query: query,
+                global_search: '1',
+                veg_only: vegFilterOnly ? '1' : '0'
+            });
+
+            try {
+                const res = await fetch(`{{ route('pos.search') }}?${params.toString()}`);
+                const data = await res.json();
+                if (data.success) {
+                    const allItems = [...(data.combos || []), ...(data.foods || [])];
+                    searchDropdownItems = allItems;
+                    searchHighlightedIndex = -1;
+                    renderSearchDropdown(allItems, query);
+
+                    // Sync background food grid with filtered results
+                    renderFoodsGrid(data.foods, data.combos);
+                }
+            } catch (err) {
+                console.error("Search fetch error:", err);
+            }
+        }
+
+        function showSearchDropdownLoading(query) {
+            const dropdown = document.getElementById('searchDropdown');
+            const list = document.getElementById('searchDropdownList');
+            const countBadge = document.getElementById('searchDropdownCount');
+            if (!dropdown || !list) return;
+
+            dropdown.classList.remove('hidden');
+            isSearchDropdownOpen = true;
+            if (countBadge) countBadge.innerText = 'Searching menu...';
+
+            list.innerHTML = `
+                <div class="px-4 py-8 text-center text-slate-400">
+                    <i class="fa-solid fa-circle-notch fa-spin text-orange-500 text-xl mb-2 block"></i>
+                    <p class="text-xs font-semibold text-slate-600">Searching products for "<span class="text-orange-600 font-bold">${escapeHtml(query)}</span>"...</p>
+                </div>
+            `;
+        }
+
+        function renderSearchDropdown(items, query) {
+            const dropdown = document.getElementById('searchDropdown');
+            const list = document.getElementById('searchDropdownList');
+            const countBadge = document.getElementById('searchDropdownCount');
+            if (!dropdown || !list) return;
+
+            dropdown.classList.remove('hidden');
+            isSearchDropdownOpen = true;
+
+            if (items.length === 0) {
+                if (countBadge) countBadge.innerText = '0 products found';
+                list.innerHTML = `
+                    <div class="px-4 py-8 text-center text-slate-400">
+                        <i class="fa-solid fa-bowl-food text-2xl mb-2 text-slate-300 block"></i>
+                        <p class="text-xs font-semibold text-slate-700">No products found matching "<span class="text-orange-600 font-bold">${escapeHtml(query)}</span>"</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Try searching by food code or dish name</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (countBadge) {
+                countBadge.innerHTML = `<span class="text-orange-600 font-black">${items.length}</span> ${items.length === 1 ? 'product' : 'products'} found`;
+            }
+
+            let html = '';
+            items.forEach((item, index) => {
+                const isCombo = item.type === 'combo';
+                const vegBadge = isCombo 
+                    ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 shrink-0">COMBO</span>'
+                    : (item.is_veg 
+                        ? '<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200 shrink-0" title="Veg"></span>'
+                        : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-200 shrink-0" title="Non-Veg"></span>');
+
+                const imageHtml = item.image 
+                    ? `<img src="${item.image}" class="w-full h-full object-cover" onerror="this.remove()">` 
+                    : `<i class="fa-solid ${isCombo ? 'fa-boxes-stacked text-amber-500' : 'fa-bowl-food text-slate-400'} text-xs"></i>`;
+
+                html += `
+                    <div id="searchDropdownItem_${index}"
+                        onclick="onSelectDropdownItem(${index})"
+                        onmouseenter="highlightSearchItem(${index})"
+                        class="search-dropdown-item px-3 sm:px-3.5 py-2.5 flex items-center justify-between hover:bg-orange-50/80 cursor-pointer transition select-none group border-l-4 border-transparent"
+                        data-index="${index}">
+                        
+                        <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200/80">
+                                ${imageHtml}
+                            </div>
+
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 mb-0.5">
+                                    <span class="font-mono text-[10px] font-black px-1.5 py-0.2 rounded ${isCombo ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'} shrink-0">
+                                        ${escapeHtml(item.code)}
+                                    </span>
+                                    ${vegBadge}
+                                    <span class="text-[10px] text-slate-400 truncate max-w-[120px] sm:max-w-[200px]">
+                                        ${escapeHtml(item.category || '')}
+                                    </span>
+                                </div>
+                                <h4 class="font-bold text-slate-800 text-xs sm:text-[13px] truncate group-hover:text-orange-600 transition">
+                                    ${escapeHtml(item.name)}
+                                </h4>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="font-black text-xs sm:text-sm text-slate-900 group-hover:text-orange-600 transition">
+                                ${CURRENCY}${parseFloat(item.price).toFixed(2)}
+                            </span>
+                            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-xs">
+                                <i class="fa-solid fa-plus"></i>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        function highlightSearchItem(index) {
+            searchHighlightedIndex = index;
+            document.querySelectorAll('.search-dropdown-item').forEach((el, idx) => {
+                if (idx === index) {
+                    el.classList.add('bg-orange-100', 'border-orange-500');
+                    el.classList.remove('border-transparent');
+                } else {
+                    el.classList.remove('bg-orange-100', 'border-orange-500');
+                    el.classList.add('border-transparent');
+                }
+            });
+        }
+
+        function updateHighlightedSearchItem() {
+            document.querySelectorAll('.search-dropdown-item').forEach((el, idx) => {
+                if (idx === searchHighlightedIndex) {
+                    el.classList.add('bg-orange-100', 'border-orange-500');
+                    el.classList.remove('border-transparent');
+                    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    el.classList.remove('bg-orange-100', 'border-orange-500');
+                    el.classList.add('border-transparent');
+                }
+            });
+        }
+
+        async function onSearchKeyDown(e) {
+            if (e.key === 'ArrowDown') {
+                if (!isSearchDropdownOpen || searchDropdownItems.length === 0) return;
+                e.preventDefault();
+                searchHighlightedIndex++;
+                if (searchHighlightedIndex >= searchDropdownItems.length) {
+                    searchHighlightedIndex = 0;
+                }
+                updateHighlightedSearchItem();
+            } else if (e.key === 'ArrowUp') {
+                if (!isSearchDropdownOpen || searchDropdownItems.length === 0) return;
+                e.preventDefault();
+                searchHighlightedIndex--;
+                if (searchHighlightedIndex < 0) {
+                    searchHighlightedIndex = searchDropdownItems.length - 1;
+                }
+                updateHighlightedSearchItem();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const input = document.getElementById('foodSearchInput');
+                const query = input ? input.value.trim() : '';
+
+                // If items already rendered in dropdown, select highlighted or first item
+                if (searchDropdownItems.length > 0) {
+                    const targetIndex = (searchHighlightedIndex >= 0 && searchHighlightedIndex < searchDropdownItems.length)
+                        ? searchHighlightedIndex
+                        : 0;
+                    onSelectDropdownItem(targetIndex);
+                    return;
+                }
+
+                // If fast barcode scan or instant Enter before debounce: fetch & add immediately
+                if (query.length > 0) {
+                    clearTimeout(searchDebounce);
+                    showSearchDropdownLoading(query);
+                    try {
+                        const params = new URLSearchParams({
+                            category_id: 'all',
+                            query: query,
+                            global_search: '1',
+                            veg_only: vegFilterOnly ? '1' : '0'
+                        });
+                        const res = await fetch(`{{ route('pos.search') }}?${params.toString()}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            const allItems = [...(data.combos || []), ...(data.foods || [])];
+                            if (allItems.length > 0) {
+                                searchDropdownItems = allItems;
+                                const exactMatchIdx = allItems.findIndex(i => (i.code || '').toLowerCase() === query.toLowerCase());
+                                const pickIdx = exactMatchIdx > -1 ? exactMatchIdx : 0;
+                                onSelectDropdownItem(pickIdx);
+                            } else {
+                                renderSearchDropdown([], query);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Barcode scan enter error:", err);
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                hideSearchDropdown();
+            }
+        }
+
+        function onSearchFocus() {
+            const input = document.getElementById('foodSearchInput');
+            if (input && input.value.trim().length > 0 && searchDropdownItems.length > 0) {
+                const dropdown = document.getElementById('searchDropdown');
+                if (dropdown) dropdown.classList.remove('hidden');
+                isSearchDropdownOpen = true;
+            }
+        }
+
+        function hideSearchDropdown() {
+            const dropdown = document.getElementById('searchDropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            isSearchDropdownOpen = false;
+            searchHighlightedIndex = -1;
+        }
+
+        function onSelectDropdownItem(index) {
+            if (!searchDropdownItems || !searchDropdownItems[index]) return;
+            const item = searchDropdownItems[index];
+
+            // 1. Add directly to cart
+            addToCart(item.type, item.id, item.code, item.name, item.price);
+
+            // 2. Immediate feedback toast
+            Toast.fire({
+                icon: 'success',
+                title: `Added "${item.name}" to cart`
+            });
+
+            // 3. Clear search box and refocus for next scan / search
+            const input = document.getElementById('foodSearchInput');
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) clearBtn.classList.add('hidden');
+
+            // 4. Hide dropdown and reset search state
+            hideSearchDropdown();
+            searchDropdownItems = [];
+
+            // 5. Restore background food grid
+            fetchFoods();
         }
 
         function clearSearch() {
-            document.getElementById('foodSearchInput').value = '';
-            document.getElementById('clearSearchBtn').classList.add('hidden');
+            const input = document.getElementById('foodSearchInput');
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) clearBtn.classList.add('hidden');
+            hideSearchDropdown();
+            searchDropdownItems = [];
             fetchFoods();
         }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const searchContainer = document.getElementById('searchContainer');
+            if (searchContainer && !searchContainer.contains(e.target)) {
+                hideSearchDropdown();
+            }
+        });
 
         // 3. CART OPERATIONS
         function addToCart(type, id, code, name, price) {

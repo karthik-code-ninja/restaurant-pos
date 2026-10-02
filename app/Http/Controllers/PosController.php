@@ -89,7 +89,8 @@ class PosController extends Controller
     {
         $query = Food::active()->with('category');
 
-        if ($request->filled('category_id') && $request->category_id !== 'all') {
+        $isGlobal = $request->boolean('global_search');
+        if (!$isGlobal && $request->filled('category_id') && $request->category_id !== 'all') {
             $query->where('category_id', $request->category_id);
         }
 
@@ -99,6 +100,7 @@ class PosController extends Controller
                 $sub->where('name', 'like', "%{$q}%")
                     ->orWhere('code', 'like', "%{$q}%");
             });
+            $query->orderByRaw("CASE WHEN code = ? THEN 1 WHEN code LIKE ? THEN 2 WHEN name LIKE ? THEN 3 ELSE 4 END", [$q, "{$q}%", "{$q}%"]);
         }
 
         if ($request->has('veg_only') && $request->boolean('veg_only')) {
@@ -127,6 +129,7 @@ class PosController extends Controller
                 $sub->where('name', 'like', "%{$q}%")
                     ->orWhere('code', 'like', "%{$q}%");
             });
+            $comboQuery->orderByRaw("CASE WHEN code = ? THEN 1 WHEN code LIKE ? THEN 2 WHEN name LIKE ? THEN 3 ELSE 4 END", [$q, "{$q}%", "{$q}%"]);
         }
         $combos = $comboQuery->get()->map(function ($c) {
             return [
