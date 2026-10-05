@@ -214,6 +214,9 @@
                         @if(!empty($item['notes']))
                         <div style="font-size: 10px; font-style: italic;">Note: {{ $item['notes'] }}</div>
                         @endif
+                        @if(!empty($item['discount_amount']) && $item['discount_amount'] > 0)
+                        <div style="font-size: 9px; color: #555;">Disc: -{{ $receiptData['bill']['currency'] }}{{ number_format($item['discount_amount'], 2) }} (GST: {{ number_format($item['tax_rate'], 0) }}%)</div>
+                        @endif
                     </td>
                     <td class="text-center font-bold">{{ (float) $item['quantity'] }}</td>
                     <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>

@@ -38,11 +38,15 @@ class BillCalculationService
         $totalSgst = 0.0;
         $totalIgst = 0.0;
 
+        $totalItemDiscounts = 0.0;
+
         foreach ($cartItems as $cartItem) {
             $type = $cartItem['item_type'] ?? 'food';
             $itemId = (int) ($cartItem['item_id'] ?? 0);
             $qty = max(1, (float) ($cartItem['quantity'] ?? 1));
             $notes = $cartItem['notes'] ?? null;
+            $itemDiscType = ($cartItem['discount_type'] ?? 'fixed') === 'percentage' ? 'percentage' : 'fixed';
+            $itemDiscVal = max(0, (float) ($cartItem['discount_value'] ?? 0));
 
             if ($type === 'combo') {
                 $combo = Combo::find($itemId);
@@ -94,25 +98,31 @@ class BillCalculationService
 
             $itemSubtotal = round($unitPrice * $qty, 2);
             $addonSubtotalSum = array_sum(array_column($addonsData, 'total'));
-            $lineSubtotal = round($itemSubtotal + $addonSubtotalSum, 2);
+            $lineGross = round($itemSubtotal + $addonSubtotalSum, 2);
+
+            // Item-level discount calculation
+            if ($itemDiscType === 'percentage') {
+                $itemDiscAmount = round(($lineGross * min(100, $itemDiscVal)) / 100, 2);
+            } else {
+                $itemDiscAmount = round(min($lineGross, $itemDiscVal), 2);
+            }
+            $lineTaxable = max(0, round($lineGross - $itemDiscAmount, 2));
+            $totalItemDiscounts += $itemDiscAmount;
 
             // Item-wise Tax calculation
             if ($taxType === 'inclusive') {
-                $itemTax = round($itemSubtotal - ($itemSubtotal / (1 + ($taxRate / 100))), 2);
+                $itemTax = round($lineTaxable - ($lineTaxable / (1 + ($taxRate / 100))), 2);
                 $itemCgst = round($itemTax * ($cgstShare / max(0.01, $taxRate)), 2);
                 $itemSgst = round($itemTax - $itemCgst, 2);
-                $lineTotal = $lineSubtotal;
+                $lineTotal = $lineTaxable;
             } else {
-                $itemTax = round($itemSubtotal * ($taxRate / 100), 2);
-                $addonTaxSum = array_sum(array_column($addonsData, 'tax_amount'));
-                $totalLineTax = round($itemTax + $addonTaxSum, 2);
-                $itemCgst = round($totalLineTax * ($cgstShare / max(0.01, $taxRate)), 2);
-                $itemSgst = round($totalLineTax - $itemCgst, 2);
-                $lineTotal = round($lineSubtotal + $totalLineTax, 2);
-                $itemTax = $totalLineTax;
+                $itemTax = round($lineTaxable * ($taxRate / 100), 2);
+                $itemCgst = round($itemTax * ($cgstShare / max(0.01, $taxRate)), 2);
+                $itemSgst = round($itemTax - $itemCgst, 2);
+                $lineTotal = round($lineTaxable + $itemTax, 2);
             }
 
-            $subtotal += $lineSubtotal;
+            $subtotal += $lineGross;
             $totalTax += $itemTax;
             $totalCgst += $itemCgst;
             $totalSgst += $itemSgst;
@@ -125,7 +135,10 @@ class BillCalculationService
                 'item_name' => $name,
                 'unit_price' => $unitPrice,
                 'quantity' => $qty,
-                'subtotal' => $lineSubtotal,
+                'discount_type' => $itemDiscType,
+                'discount_value' => $itemDiscVal,
+                'discount_amount' => $itemDiscAmount,
+                'subtotal' => $lineGross,
                 'tax_rate' => $taxRate,
                 'tax_amount' => $itemTax,
                 'cgst_amount' => $itemCgst,
@@ -137,27 +150,30 @@ class BillCalculationService
             ];
         }
 
-        // Discount calculation
-        $discountAmount = 0.0;
+        // Bill-level Discount calculation
+        $billDiscountAmount = 0.0;
+        $remainingSubtotal = max(0, $subtotal - $totalItemDiscounts);
         if ($discountType === 'percentage') {
             $pct = max(0, min(100, $discountValue));
-            $discountAmount = round(($subtotal * $pct) / 100, 2);
+            $billDiscountAmount = round(($remainingSubtotal * $pct) / 100, 2);
         } else {
-            $discountAmount = round(max(0, min($subtotal, $discountValue)), 2);
+            $billDiscountAmount = round(max(0, min($remainingSubtotal, $discountValue)), 2);
         }
 
-        // Apply discount proportionally to taxes if tax is exclusive
-        if ($subtotal > 0 && $discountAmount > 0 && $taxType === 'exclusive') {
-            $discountRatio = ($subtotal - $discountAmount) / $subtotal;
+        $totalDiscountAmount = round($totalItemDiscounts + $billDiscountAmount, 2);
+
+        // Apply bill-level discount proportionally to taxes if tax is exclusive
+        if ($remainingSubtotal > 0 && $billDiscountAmount > 0 && $taxType === 'exclusive') {
+            $discountRatio = ($remainingSubtotal - $billDiscountAmount) / $remainingSubtotal;
             $totalTax = round($totalTax * $discountRatio, 2);
             $totalCgst = round($totalTax * ($cgstShare / max(0.01, $defaultGstRate)), 2);
             $totalSgst = round($totalTax - $totalCgst, 2);
         }
 
         if ($taxType === 'exclusive') {
-            $rawGrandTotal = max(0, ($subtotal - $discountAmount) + $totalTax);
+            $rawGrandTotal = max(0, ($subtotal - $totalDiscountAmount) + $totalTax);
         } else {
-            $rawGrandTotal = max(0, $subtotal - $discountAmount);
+            $rawGrandTotal = max(0, $subtotal - $totalDiscountAmount);
         }
 
         $roundedGrandTotal = round($rawGrandTotal);
@@ -168,9 +184,10 @@ class BillCalculationService
             'items_count' => count($processedItems),
             'total_quantity' => array_sum(array_column($processedItems, 'quantity')),
             'subtotal' => round($subtotal, 2),
+            'item_discounts_total' => round($totalItemDiscounts, 2),
             'discount_type' => $discountType,
             'discount_value' => round($discountValue, 2),
-            'discount_amount' => round($discountAmount, 2),
+            'discount_amount' => $totalDiscountAmount,
             'tax_type' => $taxType,
             'tax_total' => round($totalTax, 2),
             'cgst_total' => round($totalCgst, 2),

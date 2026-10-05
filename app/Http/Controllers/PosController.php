@@ -98,9 +98,10 @@ class PosController extends Controller
             $q = trim($request->input('query'));
             $query->where(function ($sub) use ($q) {
                 $sub->where('name', 'like', "%{$q}%")
-                    ->orWhere('code', 'like', "%{$q}%");
+                    ->orWhere('code', 'like', "%{$q}%")
+                    ->orWhere('barcode', 'like', "%{$q}%");
             });
-            $query->orderByRaw("CASE WHEN code = ? THEN 1 WHEN code LIKE ? THEN 2 WHEN name LIKE ? THEN 3 ELSE 4 END", [$q, "{$q}%", "{$q}%"]);
+            $query->orderByRaw("CASE WHEN barcode = ? THEN 1 WHEN code = ? THEN 2 WHEN barcode LIKE ? THEN 3 WHEN code LIKE ? THEN 4 WHEN name LIKE ? THEN 5 ELSE 6 END", [$q, $q, "{$q}%", "{$q}%", "{$q}%"]);
         }
 
         if ($request->has('veg_only') && $request->boolean('veg_only')) {
@@ -112,8 +113,11 @@ class PosController extends Controller
                 'id' => $f->id,
                 'type' => 'food',
                 'code' => $f->code,
+                'barcode' => $f->barcode ?: $f->code,
                 'name' => $f->name,
                 'price' => (float) $f->price,
+                'mrp' => (float) ($f->mrp > 0 ? $f->mrp : $f->price),
+                'stock' => (float) ($f->stock ?? 0),
                 'tax_rate' => (float) $f->tax_rate,
                 'is_veg' => (bool) $f->is_veg,
                 'category' => $f->category?->name,
@@ -136,8 +140,11 @@ class PosController extends Controller
                 'id' => $c->id,
                 'type' => 'combo',
                 'code' => $c->code,
+                'barcode' => $c->code,
                 'name' => $c->name,
                 'price' => (float) $c->price,
+                'mrp' => (float) $c->price,
+                'stock' => 999,
                 'tax_rate' => (float) $c->tax_rate,
                 'is_veg' => false,
                 'category' => 'Combo Special',
@@ -190,7 +197,9 @@ class PosController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_type' => ['required', 'in:food,combo'],
             'items.*.item_id' => ['required', 'integer'],
-            'items.*.quantity' => ['required', 'numeric', 'min:1'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+            'items.*.discount_type' => ['nullable', 'in:fixed,percentage'],
+            'items.*.discount_value' => ['nullable', 'numeric', 'min:0'],
             'items.*.notes' => ['nullable', 'string'],
             'items.*.addons' => ['nullable', 'array'],
         ]);
@@ -290,6 +299,9 @@ class PosController extends Controller
                     'item_name' => $itemData['item_name'],
                     'unit_price' => $itemData['unit_price'],
                     'quantity' => $itemData['quantity'],
+                    'discount_type' => $itemData['discount_type'] ?? 'fixed',
+                    'discount_value' => $itemData['discount_value'] ?? 0,
+                    'discount_amount' => $itemData['discount_amount'] ?? 0,
                     'subtotal' => $itemData['subtotal'],
                     'tax_rate' => $itemData['tax_rate'],
                     'tax_amount' => $itemData['tax_amount'],
@@ -353,7 +365,9 @@ class PosController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_type' => ['required', 'in:food,combo'],
             'items.*.item_id' => ['required', 'integer'],
-            'items.*.quantity' => ['required', 'numeric', 'min:1'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+            'items.*.discount_type' => ['nullable', 'in:fixed,percentage'],
+            'items.*.discount_value' => ['nullable', 'numeric', 'min:0'],
             'items.*.notes' => ['nullable', 'string'],
             'items.*.addons' => ['nullable', 'array'],
             'payments' => ['required', 'array', 'min:1'],
@@ -448,6 +462,9 @@ class PosController extends Controller
                     'item_name' => $itemData['item_name'],
                     'unit_price' => $itemData['unit_price'],
                     'quantity' => $itemData['quantity'],
+                    'discount_type' => $itemData['discount_type'] ?? 'fixed',
+                    'discount_value' => $itemData['discount_value'] ?? 0,
+                    'discount_amount' => $itemData['discount_amount'] ?? 0,
                     'subtotal' => $itemData['subtotal'],
                     'tax_rate' => $itemData['tax_rate'],
                     'tax_amount' => $itemData['tax_amount'],

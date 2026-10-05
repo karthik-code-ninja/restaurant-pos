@@ -17,9 +17,12 @@ class Food extends Model
     protected $fillable = [
         'category_id',
         'code',
+        'barcode',
         'hsn_code',
         'name',
         'price',
+        'mrp',
+        'stock',
         'tax_rate',
         'is_veg',
         'is_active',
@@ -31,6 +34,8 @@ class Food extends Model
     {
         return [
             'price' => 'decimal:2',
+            'mrp' => 'decimal:2',
+            'stock' => 'decimal:3',
             'tax_rate' => 'decimal:2',
             'is_veg' => 'boolean',
             'is_active' => 'boolean',

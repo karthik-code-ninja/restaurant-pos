@@ -92,7 +92,7 @@
                 </button>
 
                 <!-- Floating Search Results Dropdown -->
-                <div id="searchDropdown" class="absolute top-full left-0 right-0 sm:right-auto sm:w-[460px] mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden hidden z-50 transition-all duration-150">
+                <div id="searchDropdown" class="absolute top-full left-0 right-0 sm:right-auto sm:w-[680px] lg:w-[720px] mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden hidden z-50 transition-all duration-150">
                     <!-- Dropdown Header Bar -->
                     <div class="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px]">
                         <span id="searchDropdownCount" class="font-bold text-slate-600">0 products found</span>
@@ -104,7 +104,7 @@
                     </div>
 
                     <!-- Dropdown List Items -->
-                    <div id="searchDropdownList" class="max-h-72 sm:max-h-96 overflow-y-auto divide-y divide-slate-100">
+                    <div id="searchDropdownList" class="max-h-72 sm:max-h-96 overflow-y-auto">
                         <!-- Populated dynamically via JS -->
                     </div>
                 </div>
@@ -231,7 +231,7 @@
         <div id="mobileCartBackdrop" onclick="toggleMobileCart()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
 
         <!-- SECTION 3: Current Bill / Cart Drawer (Responsive on mobile) -->
-        <div id="posCartPanel" class="fixed inset-y-0 right-0 w-full sm:w-[420px] lg:w-96 z-40 bg-white border-l border-slate-200 flex flex-col shadow-2xl transform translate-x-full lg:translate-x-0 lg:static lg:shadow-lg transition-transform duration-300 ease-in-out">
+        <div id="posCartPanel" class="fixed inset-y-0 right-0 w-full sm:w-[480px] lg:w-[490px] xl:w-[540px] z-40 bg-white border-l border-slate-200 flex flex-col shadow-2xl transform translate-x-full lg:translate-x-0 lg:static lg:shadow-lg transition-transform duration-300 ease-in-out">
             <!-- Cart Header -->
             <div class="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-shrink-0">
                 <div>
@@ -253,8 +253,8 @@
                 </div>
             </div>
 
-            <!-- Cart Items List (Scrollable) -->
-            <div class="flex-1 overflow-y-auto p-3 divide-y divide-slate-100 smooth-scroll" id="cartItemsList">
+            <!-- Cart Items List (Scrollable Table Area) -->
+            <div class="flex-1 overflow-y-auto p-2 smooth-scroll" id="cartItemsList">
                 <div id="emptyCartMessage" class="py-16 text-center text-slate-400">
                     <i class="fa-solid fa-cart-shopping text-3xl mb-2 text-slate-300 block"></i>
                     <p class="text-xs font-bold text-slate-600">Cart is Empty</p>
@@ -583,6 +583,7 @@
     <script>
         const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const CURRENCY = "{{ $currency }}";
+        const TAX_TYPE = "{{ $taxType }}";
         const AVAILABLE_ADDONS = @json($addons);
         const INITIAL_ACTIVE_BILL = @json($activeBill);
         const KITCHEN_PRINTERS = @json($kitchenPrinters ?? []);
@@ -761,7 +762,7 @@
                     : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-200" title="Non-Veg"></span>');
 
                 html += `
-                    <button type="button" onclick="addToCart('${item.type}', ${item.id}, '${escapeQuotes(item.code)}', '${escapeQuotes(item.name)}', ${item.price})"
+                    <button type="button" onclick="addToCart('${item.type}', ${item.id}, '${escapeQuotes(item.code)}', '${escapeQuotes(item.name)}', ${item.price}, ${item.tax_rate || 5})"
                         class="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md transition text-left flex flex-col justify-between active:scale-95 touch-action-manipulation group shadow-xs">
                         
                         <div>
@@ -931,7 +932,7 @@
                     <div class="px-4 py-8 text-center text-slate-400">
                         <i class="fa-solid fa-bowl-food text-2xl mb-2 text-slate-300 block"></i>
                         <p class="text-xs font-semibold text-slate-700">No products found matching "<span class="text-orange-600 font-bold">${escapeHtml(query)}</span>"</p>
-                        <p class="text-[11px] text-slate-400 mt-1">Try searching by food code or dish name</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Try searching by barcode, food code, or dish name</p>
                     </div>
                 `;
                 return;
@@ -941,58 +942,77 @@
                 countBadge.innerHTML = `<span class="text-orange-600 font-black">${items.length}</span> ${items.length === 1 ? 'product' : 'products'} found`;
             }
 
-            let html = '';
+            let html = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                            <tr>
+                                <th class="py-2.5 px-3 w-32">Barcode / Code</th>
+                                <th class="py-2.5 px-3">Item Name</th>
+                                <th class="py-2.5 px-2.5 text-center w-20">Stock</th>
+                                <th class="py-2.5 px-3 text-right w-24">Sale Rate</th>
+                                <th class="py-2.5 px-3 text-right w-24">MRP Rate</th>
+                                <th class="py-2.5 px-2 text-center w-12">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+            `;
+
             items.forEach((item, index) => {
                 const isCombo = item.type === 'combo';
-                const vegBadge = isCombo 
-                    ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 shrink-0">COMBO</span>'
+                const vegDot = isCombo 
+                    ? '<span class="px-1 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-800 shrink-0">COMBO</span>'
                     : (item.is_veg 
-                        ? '<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200 shrink-0" title="Veg"></span>'
-                        : '<span class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-200 shrink-0" title="Non-Veg"></span>');
+                        ? '<span class="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 shrink-0" title="Veg"></span>'
+                        : '<span class="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-200 shrink-0" title="Non-Veg"></span>');
 
-                const imageHtml = item.image 
-                    ? `<img src="${item.image}" class="w-full h-full object-cover" onerror="this.remove()">` 
-                    : `<i class="fa-solid ${isCombo ? 'fa-boxes-stacked text-amber-500' : 'fa-bowl-food text-slate-400'} text-xs"></i>`;
+                const barcodeText = escapeHtml(item.barcode || item.code);
+                const stockVal = parseFloat(item.stock || 0);
+                const stockBadge = stockVal > 0
+                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">${stockVal}</span>`
+                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">0</span>`;
 
                 html += `
-                    <div id="searchDropdownItem_${index}"
+                    <tr id="searchDropdownItem_${index}"
                         onclick="onSelectDropdownItem(${index})"
                         onmouseenter="highlightSearchItem(${index})"
-                        class="search-dropdown-item px-3 sm:px-3.5 py-2.5 flex items-center justify-between hover:bg-orange-50/80 cursor-pointer transition select-none group border-l-4 border-transparent"
+                        class="search-dropdown-item hover:bg-orange-50 cursor-pointer transition select-none group border-l-4 border-transparent"
                         data-index="${index}">
-                        
-                        <div class="flex items-center gap-2.5 min-w-0 pr-2">
-                            <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200/80">
-                                ${imageHtml}
-                            </div>
-
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-1.5 mb-0.5">
-                                    <span class="font-mono text-[10px] font-black px-1.5 py-0.2 rounded ${isCombo ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'} shrink-0">
-                                        ${escapeHtml(item.code)}
-                                    </span>
-                                    ${vegBadge}
-                                    <span class="text-[10px] text-slate-400 truncate max-w-[120px] sm:max-w-[200px]">
-                                        ${escapeHtml(item.category || '')}
-                                    </span>
-                                </div>
-                                <h4 class="font-bold text-slate-800 text-xs sm:text-[13px] truncate group-hover:text-orange-600 transition">
+                        <td class="py-2.5 px-3 font-mono font-bold text-slate-800">
+                            <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-mono font-bold">${barcodeText}</span>
+                        </td>
+                        <td class="py-2.5 px-3">
+                            <div class="flex items-center gap-1.5">
+                                ${vegDot}
+                                <span class="font-bold text-slate-800 text-xs sm:text-[13px] group-hover:text-orange-600 transition truncate max-w-[200px] sm:max-w-[260px] inline-block" title="${escapeHtml(item.name)}">
                                     ${escapeHtml(item.name)}
-                                </h4>
+                                </span>
                             </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 shrink-0">
-                            <span class="font-black text-xs sm:text-sm text-slate-900 group-hover:text-orange-600 transition">
-                                ${CURRENCY}${parseFloat(item.price).toFixed(2)}
-                            </span>
-                            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-xs">
+                            <span class="text-[10px] text-slate-400 block">${escapeHtml(item.category || '')}</span>
+                        </td>
+                        <td class="py-2.5 px-2.5 text-center">
+                            ${stockBadge}
+                        </td>
+                        <td class="py-2.5 px-3 text-right font-black text-slate-900 group-hover:text-orange-600 transition">
+                            ${CURRENCY}${parseFloat(item.price).toFixed(2)}
+                        </td>
+                        <td class="py-2.5 px-3 text-right font-semibold text-slate-500 text-xs">
+                            ${CURRENCY}${parseFloat(item.mrp || item.price).toFixed(2)}
+                        </td>
+                        <td class="py-2.5 px-2 text-center">
+                            <div class="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition mx-auto shadow-2xs">
                                 <i class="fa-solid fa-plus"></i>
                             </div>
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
                 `;
             });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
 
             list.innerHTML = html;
         }
@@ -1001,10 +1021,10 @@
             searchHighlightedIndex = index;
             document.querySelectorAll('.search-dropdown-item').forEach((el, idx) => {
                 if (idx === index) {
-                    el.classList.add('bg-orange-100', 'border-orange-500');
+                    el.classList.add('bg-orange-100/80', 'border-orange-500');
                     el.classList.remove('border-transparent');
                 } else {
-                    el.classList.remove('bg-orange-100', 'border-orange-500');
+                    el.classList.remove('bg-orange-100/80', 'border-orange-500');
                     el.classList.add('border-transparent');
                 }
             });
@@ -1013,11 +1033,11 @@
         function updateHighlightedSearchItem() {
             document.querySelectorAll('.search-dropdown-item').forEach((el, idx) => {
                 if (idx === searchHighlightedIndex) {
-                    el.classList.add('bg-orange-100', 'border-orange-500');
+                    el.classList.add('bg-orange-100/80', 'border-orange-500');
                     el.classList.remove('border-transparent');
                     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                 } else {
-                    el.classList.remove('bg-orange-100', 'border-orange-500');
+                    el.classList.remove('bg-orange-100/80', 'border-orange-500');
                     el.classList.add('border-transparent');
                 }
             });
@@ -1071,7 +1091,7 @@
                             const allItems = [...(data.combos || []), ...(data.foods || [])];
                             if (allItems.length > 0) {
                                 searchDropdownItems = allItems;
-                                const exactMatchIdx = allItems.findIndex(i => (i.code || '').toLowerCase() === query.toLowerCase());
+                                const exactMatchIdx = allItems.findIndex(i => ((i.barcode || '').toLowerCase() === query.toLowerCase()) || ((i.code || '').toLowerCase() === query.toLowerCase()));
                                 const pickIdx = exactMatchIdx > -1 ? exactMatchIdx : 0;
                                 onSelectDropdownItem(pickIdx);
                             } else {
@@ -1108,8 +1128,8 @@
             if (!searchDropdownItems || !searchDropdownItems[index]) return;
             const item = searchDropdownItems[index];
 
-            // 1. Add directly to cart
-            addToCart(item.type, item.id, item.code, item.name, item.price);
+            // 1. Add directly to cart with tax_rate
+            addToCart(item.type, item.id, item.code, item.name, item.price, item.tax_rate);
 
             // 2. Immediate feedback toast
             Toast.fire({
@@ -1156,7 +1176,8 @@
         });
 
         // 3. CART OPERATIONS
-        function addToCart(type, id, code, name, price) {
+        function addToCart(type, id, code, name, price, tax_rate) {
+            const taxVal = parseFloat(tax_rate !== undefined ? tax_rate : 5);
             // Check if existing item in cart (without notes/addons)
             const existingIndex = cart.findIndex(c => c.item_type === type && c.item_id === id && (!c.addons || c.addons.length === 0) && !c.notes);
             if (existingIndex > -1) {
@@ -1169,11 +1190,34 @@
                     name: name,
                     unit_price: parseFloat(price),
                     quantity: 1,
+                    discount_type: 'fixed',
+                    discount_value: 0,
+                    tax_rate: taxVal,
                     notes: '',
                     addons: []
                 });
             }
 
+            renderCart();
+            triggerCalculation();
+        }
+
+        function setCartQty(index, val) {
+            if (!cart[index]) return;
+            const parsed = parseFloat(val);
+            if (isNaN(parsed) || parsed <= 0) {
+                cart.splice(index, 1);
+            } else {
+                cart[index].quantity = parsed;
+            }
+            renderCart();
+            triggerCalculation();
+        }
+
+        function updateItemDiscount(index, val) {
+            if (!cart[index]) return;
+            const parsed = Math.max(0, parseFloat(val) || 0);
+            cart[index].discount_value = parsed;
             renderCart();
             triggerCalculation();
         }
@@ -1299,7 +1343,7 @@
             }
         }
 
-        function renderCart() {
+        function renderCart(syncTotals = true) {
             const container = document.getElementById('cartItemsList');
             const totalQtySpan = document.getElementById('cartTotalQty');
 
@@ -1311,7 +1355,7 @@
                         <p class="text-[11px] text-slate-400 mt-1">Select items from the menu to build the bill.</p>
                     </div>
                 `;
-                totalQtySpan.innerText = '0';
+                if (totalQtySpan) totalQtySpan.innerText = '0';
                 const mobHeaderCount = document.getElementById('mobileCartHeaderCount');
                 if (mobHeaderCount) mobHeaderCount.innerText = '0';
                 const mobBottomQty = document.getElementById('mobileBottomQty');
@@ -1320,56 +1364,125 @@
             }
 
             let totalQty = 0;
-            let html = '';
+            let html = `
+                <div class="overflow-x-auto -mx-1">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                            <tr>
+                                <th class="py-2 px-1 text-center w-14">Code</th>
+                                <th class="py-2 px-1">Item</th>
+                                <th class="py-2 px-1 text-center w-20">Qty</th>
+                                <th class="py-2 px-1 text-right w-14">Rate</th>
+                                <th class="py-2 px-1 text-center w-14">Disc</th>
+                                <th class="py-2 px-1 text-center w-12">GST</th>
+                                <th class="py-2 px-1 text-right w-16">Total</th>
+                                <th class="py-2 px-0.5 text-center w-6"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+            `;
 
             cart.forEach((item, index) => {
-                totalQty += item.quantity;
-                const itemTotal = (item.unit_price * item.quantity).toFixed(2);
-                
+                const qty = parseFloat(item.quantity) || 1;
+                totalQty += qty;
+
+                // Check server calculated item total if available
+                let itemTotal = 0;
+                let itemTaxRate = parseFloat(item.tax_rate !== undefined ? item.tax_rate : 5);
+                if (calculationState && calculationState.items && calculationState.items[index]) {
+                    itemTotal = calculationState.items[index].total;
+                    itemTaxRate = calculationState.items[index].tax_rate;
+                } else {
+                    const lineGross = (item.unit_price * qty);
+                    const lineDisc = parseFloat(item.discount_value || 0);
+                    const lineTaxable = Math.max(0, lineGross - lineDisc);
+                    const lineTax = (TAX_TYPE === 'exclusive') ? (lineTaxable * itemTaxRate / 100) : 0;
+                    itemTotal = lineTaxable + lineTax;
+                }
+
                 // Addons list string
                 let addonsHtml = '';
                 if (item.addons && item.addons.length > 0) {
                     const addonNames = AVAILABLE_ADDONS.filter(a => item.addons.includes(a.id)).map(a => a.name).join(', ');
-                    addonsHtml = `<p class="text-[10px] text-orange-600 font-medium mt-0.5">+ ${addonNames}</p>`;
+                    addonsHtml = `<p class="text-[9px] text-orange-600 font-medium leading-none mt-0.5">+ ${addonNames}</p>`;
                 }
 
                 html += `
-                    <div class="py-2.5">
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex-1 min-w-0">
-                                <h5 class="text-xs font-bold text-slate-800 truncate">${item.name}</h5>
-                                <p class="text-[10px] text-slate-400">${item.code} &bull; ${CURRENCY}${item.unit_price.toFixed(2)} ea</p>
-                                ${addonsHtml}
-                            </div>
-                            
-                            <!-- Qty Controls: Touch-Friendly -->
-                            <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50 shadow-inner shrink-0">
-                                <button type="button" onclick="updateCartQty(${index}, -1)" class="w-7 sm:w-8 h-7 sm:h-8 flex items-center justify-center text-slate-700 hover:bg-white active:scale-90 font-black text-sm transition touch-action-manipulation">-</button>
-                                <span class="w-7 sm:w-8 text-center font-extrabold text-xs sm:text-sm text-slate-900">${item.quantity}</span>
-                                <button type="button" onclick="updateCartQty(${index}, 1)" class="w-7 sm:w-8 h-7 sm:h-8 flex items-center justify-center text-orange-600 hover:bg-white active:scale-90 font-black text-sm transition touch-action-manipulation">+</button>
-                            </div>
+                    <tr class="hover:bg-slate-50/70 transition group">
+                        <!-- 1. Code -->
+                        <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 align-top">
+                            <span class="px-1 py-0.5 rounded bg-slate-100 text-[10px] block truncate" title="${escapeHtml(item.code)}">${escapeHtml(item.code)}</span>
+                        </td>
 
-                            <span class="w-16 text-right font-black text-xs sm:text-sm text-slate-900 shrink-0">${CURRENCY}${itemTotal}</span>
+                        <!-- 2. Item Name -->
+                        <td class="py-2 px-1 align-top">
+                            <div class="font-bold text-slate-800 text-[11px] leading-tight truncate max-w-[95px] sm:max-w-[130px]" title="${escapeHtml(item.name)}">
+                                ${escapeHtml(item.name)}
+                            </div>
+                            ${addonsHtml}
+                            <div class="mt-0.5 flex items-center gap-1 text-[9px] text-slate-400">
+                                <button type="button" onclick="openAddonsModal(${index})" class="hover:text-orange-600 font-semibold text-[9px]" title="Extra Add-ons">
+                                    <i class="fa-solid fa-circle-plus text-orange-500"></i> Extra
+                                </button>
+                                <span>&bull;</span>
+                                <input type="text" value="${escapeHtml(item.notes || '')}" onchange="cart[${index}].notes = this.value" placeholder="Note..." class="text-[9px] border-b border-transparent hover:border-slate-200 focus:border-orange-500 px-0.5 py-0 text-slate-500 max-w-[70px] focus:outline-none bg-transparent">
+                            </div>
+                        </td>
 
-                            <button type="button" onclick="removeCartItem(${index})" class="text-slate-300 hover:text-rose-500 active:scale-90 p-1.5 shrink-0" title="Remove Item">
+                        <!-- 3. Quantity -->
+                        <td class="py-2 px-1 align-top text-center">
+                            <div class="flex items-center justify-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
+                                <button type="button" onclick="updateCartQty(${index}, -1)" class="w-4 h-6 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-xs active:scale-90 transition touch-action-manipulation">-</button>
+                                <input type="number" min="0.01" step="1" value="${item.quantity}" onchange="setCartQty(${index}, this.value)" class="w-8 h-6 text-center text-[11px] font-black border-x border-slate-200 focus:outline-none p-0">
+                                <button type="button" onclick="updateCartQty(${index}, 1)" class="w-4 h-6 text-orange-600 hover:bg-slate-100 flex items-center justify-center font-black text-xs active:scale-90 transition touch-action-manipulation">+</button>
+                            </div>
+                        </td>
+
+                        <!-- 4. Rate -->
+                        <td class="py-2 px-1 align-top text-right font-medium text-slate-700 text-[11px]">
+                            ${CURRENCY}${parseFloat(item.unit_price).toFixed(2)}
+                        </td>
+
+                        <!-- 5. Discount Column (per-item discount input) -->
+                        <td class="py-2 px-1 align-top text-center">
+                            <input type="number" min="0" step="1" value="${item.discount_value || 0}"
+                                onchange="updateItemDiscount(${index}, this.value)"
+                                onfocus="this.select()"
+                                title="Discount in ${CURRENCY}"
+                                placeholder="0"
+                                class="w-12 h-6 px-1 text-[11px] text-right font-bold text-rose-600 border border-slate-200 rounded focus:border-orange-500 focus:outline-none bg-rose-50/50">
+                        </td>
+
+                        <!-- 6. GST Column (% display) -->
+                        <td class="py-2 px-1 align-top text-center">
+                            <span class="px-1 py-0.5 rounded text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                                ${parseFloat(itemTaxRate).toFixed(0)}%
+                            </span>
+                        </td>
+
+                        <!-- 7. Total Amount -->
+                        <td class="py-2 px-1 align-top text-right font-black text-slate-900 text-xs">
+                            ${CURRENCY}${parseFloat(itemTotal).toFixed(2)}
+                        </td>
+
+                        <!-- Action / Remove -->
+                        <td class="py-2 px-0.5 align-top text-center">
+                            <button type="button" onclick="removeCartItem(${index})" class="text-slate-300 hover:text-rose-500 active:scale-90 p-1" title="Remove Item">
                                 <i class="fa-solid fa-xmark text-xs"></i>
                             </button>
-                        </div>
-
-                        <!-- Item extras / Add-ons button -->
-                        <div class="mt-1 flex items-center gap-2">
-                            <button type="button" onclick="openAddonsModal(${index})" class="text-[10px] text-slate-500 hover:text-orange-600 font-semibold">
-                                <i class="fa-solid fa-circle-plus text-orange-500 mr-1"></i> Add-on
-                            </button>
-                            <span class="text-slate-200">&bull;</span>
-                            <input type="text" value="${item.notes || ''}" onchange="cart[${index}].notes = this.value" placeholder="Kitchen note..." class="text-[10px] border-b border-transparent hover:border-slate-200 focus:border-orange-500 px-1 py-0.5 text-slate-500 flex-1 focus:outline-none">
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
                 `;
             });
 
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
             container.innerHTML = html;
-            totalQtySpan.innerText = totalQty;
+            if (totalQtySpan) totalQtySpan.innerText = totalQty;
             const mobHeaderCount = document.getElementById('mobileCartHeaderCount');
             if (mobHeaderCount) mobHeaderCount.innerText = totalQty;
             const mobBottomQty = document.getElementById('mobileBottomQty');
@@ -1412,6 +1525,7 @@
                 const json = await res.json();
                 if (json.success) {
                     calculationState = json.data;
+                    renderCart(false);
                     document.getElementById('subtotalDisplay').innerText = `${CURRENCY}${calculationState.subtotal.toFixed(2)}`;
                     document.getElementById('taxTotalDisplay').innerText = `${CURRENCY}${calculationState.tax_total.toFixed(2)}`;
                     document.getElementById('cgstSgstDisplay').innerText = `${CURRENCY}${calculationState.cgst_total.toFixed(2)} + ${CURRENCY}${calculationState.sgst_total.toFixed(2)}`;
@@ -2034,6 +2148,9 @@
                 name: item.item_name || item.name,
                 unit_price: parseFloat(item.unit_price),
                 quantity: parseFloat(item.quantity),
+                discount_type: item.discount_type || 'fixed',
+                discount_value: parseFloat(item.discount_value || 0),
+                tax_rate: parseFloat(item.tax_rate !== undefined ? item.tax_rate : 5),
                 notes: item.notes || '',
                 addons: item.addons || []
             }));

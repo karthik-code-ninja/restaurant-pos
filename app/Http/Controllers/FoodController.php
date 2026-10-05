@@ -52,9 +52,12 @@ class FoodController extends Controller
         $validated = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'code' => ['required', 'string', 'max:50', 'unique:foods,code'],
+            'barcode' => ['nullable', 'string', 'max:100'],
             'hsn_code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:0'],
+            'mrp' => ['nullable', 'numeric', 'min:0'],
+            'stock' => ['nullable', 'numeric', 'min:0'],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'is_veg' => ['required', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
@@ -67,6 +70,9 @@ class FoodController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['is_veg'] = $request->boolean('is_veg', true);
+        $validated['barcode'] = $request->filled('barcode') ? $request->input('barcode') : null;
+        $validated['mrp'] = $request->filled('mrp') ? (float) $request->input('mrp') : (float) $validated['price'];
+        $validated['stock'] = (float) $request->input('stock', 0);
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('foods', 'public');
@@ -101,9 +107,12 @@ class FoodController extends Controller
         $validated = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'code' => ['required', 'string', 'max:50', Rule::unique('foods', 'code')->ignore($food->id)],
+            'barcode' => ['nullable', 'string', 'max:100'],
             'hsn_code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:0'],
+            'mrp' => ['nullable', 'numeric', 'min:0'],
+            'stock' => ['nullable', 'numeric', 'min:0'],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'is_veg' => ['required', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
@@ -116,6 +125,9 @@ class FoodController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_veg'] = $request->boolean('is_veg');
+        $validated['barcode'] = $request->filled('barcode') ? $request->input('barcode') : null;
+        $validated['mrp'] = $request->filled('mrp') ? (float) $request->input('mrp') : (float) $validated['price'];
+        $validated['stock'] = (float) $request->input('stock', 0);
 
         if ($request->hasFile('image')) {
             if ($food->image && Storage::disk('public')->exists($food->image)) {
@@ -125,7 +137,7 @@ class FoodController extends Controller
             $validated['image'] = $path;
         }
 
-        $oldValues = $food->only(['code', 'name', 'price', 'tax_rate', 'is_veg', 'is_active']);
+        $oldValues = $food->only(['code', 'barcode', 'name', 'price', 'mrp', 'stock', 'tax_rate', 'is_veg', 'is_active']);
         $food->update($validated);
 
         // Sync ingredients

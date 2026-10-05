@@ -65,13 +65,16 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead>
-                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold text-xs">
                         <th class="py-3 px-4">Item Code</th>
+                        <th class="py-3 px-4">Barcode</th>
                         <th class="py-3 px-4">HSN Code</th>
                         <th class="py-3 px-4">Food Name</th>
                         <th class="py-3 px-4">Category</th>
                         <th class="py-3 px-4 text-center">Type</th>
-                        <th class="py-3 px-4 text-right">Price</th>
+                        <th class="py-3 px-4 text-right">Sale Price</th>
+                        <th class="py-3 px-4 text-right">MRP</th>
+                        <th class="py-3 px-4 text-center">Stock</th>
                         <th class="py-3 px-4 text-center">GST %</th>
                         <th class="py-3 px-4">Ingredients Mapped</th>
                         <th class="py-3 px-4 text-center">Status</th>
@@ -83,6 +86,9 @@
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="py-3 px-4 font-mono font-bold text-slate-900">
                             <span class="px-2 py-0.5 bg-slate-100 rounded text-slate-700 font-bold">{{ $food->code }}</span>
+                        </td>
+                        <td class="py-3 px-4 font-mono text-xs text-slate-600">
+                            {{ $food->barcode ?: '-' }}
                         </td>
                         <td class="py-3 px-4 font-mono text-xs font-semibold text-slate-700">
                             {{ $food->hsn_code ?: '-' }}
@@ -103,6 +109,14 @@
                         </td>
                         <td class="py-3 px-4 text-right font-black text-slate-900 text-sm">
                             {{ $currency }}{{ number_format($food->price, 2) }}
+                        </td>
+                        <td class="py-3 px-4 text-right font-semibold text-slate-600 text-xs">
+                            {{ $currency }}{{ number_format($food->mrp ?: $food->price, 2) }}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ (float)$food->stock > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                                {{ (float)$food->stock }}
+                            </span>
                         </td>
                         <td class="py-3 px-4 text-center font-semibold text-slate-600">
                             {{ number_format($food->tax_rate, 1) }}%
@@ -173,6 +187,12 @@
                 </div>
 
                 <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Barcode (Scanner / Search)</label>
+                    <input type="text" name="barcode" id="foodBarcode" placeholder="e.g. 890123456789"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-mono font-semibold">
+                </div>
+
+                <div>
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">HSN Code</label>
                     <input type="text" name="hsn_code" id="foodHsn" placeholder="e.g. 2106 or 9963"
                         class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-mono font-semibold">
@@ -194,8 +214,28 @@
                 </div>
 
                 <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Food Type *</label>
+                    <select name="is_veg" id="foodVeg" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-semibold">
+                        <option value="1">Vegetarian (VEG)</option>
+                        <option value="0">Non-Vegetarian (NON-VEG)</option>
+                    </select>
+                </div>
+
+                <div>
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Selling Price ({{ $currency }}) *</label>
                     <input type="number" step="0.01" name="price" id="foodPrice" required min="0" placeholder="0.00"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-bold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">MRP Rate ({{ $currency }})</label>
+                    <input type="number" step="0.01" name="mrp" id="foodMrp" min="0" placeholder="0.00"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-bold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Current Stock (Qty)</label>
+                    <input type="number" step="0.001" name="stock" id="foodStock" min="0" placeholder="0" value="0"
                         class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-bold">
                 </div>
 
@@ -203,14 +243,6 @@
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">GST / Tax Rate (%) *</label>
                     <input type="number" step="0.01" name="tax_rate" id="foodTax" required min="0" max="100" value="5.00"
                         class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Food Type *</label>
-                    <select name="is_veg" id="foodVeg" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-semibold">
-                        <option value="1">Vegetarian (VEG)</option>
-                        <option value="0">Non-Vegetarian (NON-VEG)</option>
-                    </select>
                 </div>
             </div>
 
@@ -287,9 +319,12 @@
         form.action = "{{ route('foods.store') }}";
         methodSpoof.innerHTML = '';
         document.getElementById('foodCode').value = '';
+        document.getElementById('foodBarcode').value = '';
         document.getElementById('foodHsn').value = '';
         document.getElementById('foodName').value = '';
         document.getElementById('foodPrice').value = '';
+        document.getElementById('foodMrp').value = '';
+        document.getElementById('foodStock').value = '0';
         document.getElementById('foodTax').value = '5.00';
         document.getElementById('foodVeg').value = '1';
         document.getElementById('foodDesc').value = '';
@@ -303,10 +338,13 @@
         form.action = "{{ route('foods.update', ':id') }}".replace(':id', food.id);
         methodSpoof.innerHTML = '<input type="hidden" name="_method" value="PUT">';
         document.getElementById('foodCode').value = food.code;
+        document.getElementById('foodBarcode').value = food.barcode || '';
         document.getElementById('foodHsn').value = food.hsn_code || '';
         document.getElementById('foodName').value = food.name;
         document.getElementById('foodCat').value = food.category_id;
         document.getElementById('foodPrice').value = food.price;
+        document.getElementById('foodMrp').value = food.mrp || food.price;
+        document.getElementById('foodStock').value = food.stock || 0;
         document.getElementById('foodTax').value = food.tax_rate;
         document.getElementById('foodVeg').value = food.is_veg ? '1' : '0';
         document.getElementById('foodDesc').value = food.description || '';
