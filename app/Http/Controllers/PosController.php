@@ -114,13 +114,16 @@ class PosController extends Controller
                 'type' => 'food',
                 'code' => $f->code,
                 'barcode' => $f->barcode ?: $f->code,
+                'hsn_code' => $f->hsn_code,
                 'name' => $f->name,
                 'price' => (float) $f->price,
+                'cost_price' => (float) ($f->cost_price ?? 0),
                 'mrp' => (float) ($f->mrp > 0 ? $f->mrp : $f->price),
                 'stock' => (float) ($f->stock ?? 0),
                 'tax_rate' => (float) $f->tax_rate,
                 'is_veg' => (bool) $f->is_veg,
                 'category' => $f->category?->name,
+                'description' => $f->description,
                 'image' => $f->image ? asset('storage/' . $f->image) : null,
             ];
         });

@@ -21,6 +21,7 @@ class Food extends Model
         'hsn_code',
         'name',
         'price',
+        'cost_price',
         'mrp',
         'stock',
         'tax_rate',
@@ -34,6 +35,7 @@ class Food extends Model
     {
         return [
             'price' => 'decimal:2',
+            'cost_price' => 'decimal:2',
             'mrp' => 'decimal:2',
             'stock' => 'decimal:3',
             'tax_rate' => 'decimal:2',

@@ -56,6 +56,7 @@ class FoodController extends Controller
             'hsn_code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
             'mrp' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'numeric', 'min:0'],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -71,6 +72,7 @@ class FoodController extends Controller
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['is_veg'] = $request->boolean('is_veg', true);
         $validated['barcode'] = $request->filled('barcode') ? $request->input('barcode') : null;
+        $validated['cost_price'] = $request->filled('cost_price') ? (float) $request->input('cost_price') : 0.0;
         $validated['mrp'] = $request->filled('mrp') ? (float) $request->input('mrp') : (float) $validated['price'];
         $validated['stock'] = (float) $request->input('stock', 0);
 
@@ -111,6 +113,7 @@ class FoodController extends Controller
             'hsn_code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
             'mrp' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'numeric', 'min:0'],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -126,6 +129,7 @@ class FoodController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_veg'] = $request->boolean('is_veg');
         $validated['barcode'] = $request->filled('barcode') ? $request->input('barcode') : null;
+        $validated['cost_price'] = $request->filled('cost_price') ? (float) $request->input('cost_price') : 0.0;
         $validated['mrp'] = $request->filled('mrp') ? (float) $request->input('mrp') : (float) $validated['price'];
         $validated['stock'] = (float) $request->input('stock', 0);
 

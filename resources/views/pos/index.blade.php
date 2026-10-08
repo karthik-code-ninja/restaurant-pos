@@ -21,12 +21,19 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .smooth-scroll { -webkit-overflow-scrolling: touch; }
         * { -webkit-tap-highlight-color: transparent; }
+        @keyframes linkedPopupPop {
+            0% { opacity: 0; transform: translateY(4px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .linked-popup-animate {
+            animation: linkedPopupPop 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden select-none">
 
     <!-- Top POS Header: Responsive Multi-Flex Layout -->
-    <header class="relative bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-14 flex-shrink-0 z-30 shadow-md gap-2 lg:gap-3">
+    <header class="relative bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-14 flex-shrink-0 z-50 shadow-md gap-2 lg:gap-3">
         <!-- Top Row on Mobile / Left Section on Desktop -->
         <div class="flex items-center justify-between lg:justify-start gap-2 w-full lg:w-auto">
             <div class="flex items-center gap-1.5 sm:gap-2">
@@ -92,7 +99,7 @@
                 </button>
 
                 <!-- Floating Search Results Dropdown -->
-                <div id="searchDropdown" class="absolute top-full left-0 right-0 sm:right-auto sm:w-[680px] lg:w-[720px] mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden hidden z-50 transition-all duration-150">
+                <div id="searchDropdown" class="absolute top-full left-0 sm:right-auto w-[96vw] sm:w-[560px] lg:w-[580px] max-w-[calc(100vw-24px)] mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden hidden z-[100] transition-all duration-150">
                     <!-- Dropdown Header Bar -->
                     <div class="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px]">
                         <span id="searchDropdownCount" class="font-bold text-slate-600">0 products found</span>
@@ -106,6 +113,130 @@
                     <!-- Dropdown List Items -->
                     <div id="searchDropdownList" class="max-h-72 sm:max-h-96 overflow-y-auto">
                         <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Windows Billing Software Style Linked Product Detail Popup -->
+                <div id="searchProductLinkedPopup"
+                    class="fixed z-[110] w-[340px] sm:w-[370px] bg-white rounded-2xl shadow-2xl border border-slate-200 ring-1 ring-slate-900/10 overflow-hidden hidden transition-all duration-150 pointer-events-auto select-none">
+                    
+                    <!-- Top Gradient Header -->
+                    <div class="px-4 py-2.5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between">
+                        <div class="flex items-center gap-1.5">
+                            <span id="linkedPopupTypeBadge"></span>
+                            <span id="linkedPopupCategoryBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-slate-200 uppercase tracking-wider"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-mono text-orange-400 font-bold" id="linkedPopupCode"></span>
+                            <button type="button" onclick="hideSearchProductPreview()" class="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition" title="Close Preview">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 sm:p-4 space-y-3">
+                        <!-- Product Title & Identity -->
+                        <div class="flex items-start gap-3">
+                            <div id="linkedPopupImageContainer" class="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
+                                <!-- Dynamic thumbnail/icon -->
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 id="linkedPopupName" class="text-sm font-extrabold text-slate-900 leading-snug line-clamp-2"></h4>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold">
+                                        <i class="fa-solid fa-barcode text-[10px] text-slate-400"></i>
+                                        <span id="linkedPopupBarcodeText"></span>
+                                    </span>
+                                    <span id="linkedPopupHsnBadge" class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-mono text-[10px] font-medium"></span>
+                                    <span id="linkedPopupGstBadge" class="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[10px]"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4 Core Windows Billing Metric Tiles: QTY / MRP / SELLING / COST -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <!-- Metric 1: Product Qty (Stock) -->
+                            <div id="linkedPopupStockBox" class="p-2.5 rounded-xl border flex flex-col justify-between transition">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                                    <span>Stock Qty</span>
+                                    <i class="fa-solid fa-boxes-stacked text-[11px] text-slate-400"></i>
+                                </div>
+                                <div class="flex items-baseline gap-1">
+                                    <span id="linkedPopupStockVal" class="text-lg sm:text-xl font-black text-slate-900">0</span>
+                                    <span class="text-[10px] font-semibold text-slate-400">units</span>
+                                </div>
+                                <div id="linkedPopupStockBadge" class="mt-1"></div>
+                            </div>
+
+                            <!-- Metric 2: MRP Rate -->
+                            <div class="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-purple-700 mb-0.5">
+                                    <span>MRP Rate</span>
+                                    <i class="fa-solid fa-certificate text-[11px] text-purple-500"></i>
+                                </div>
+                                <div class="flex items-baseline gap-0.5">
+                                    <span class="text-xs font-bold text-purple-500">{{ $currency }}</span>
+                                    <span id="linkedPopupMrpVal" class="text-lg sm:text-xl font-black text-purple-700">0.00</span>
+                                </div>
+                                <span class="text-[9px] text-purple-600/80 font-medium">Max Retail Price</span>
+                            </div>
+
+                            <!-- Metric 3: Selling Price -->
+                            <div class="p-2.5 rounded-xl bg-orange-50/80 border border-orange-200 flex flex-col justify-between">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-orange-600 mb-0.5">
+                                    <span>Selling Price</span>
+                                    <i class="fa-solid fa-tag text-[11px] text-orange-500"></i>
+                                </div>
+                                <div class="flex items-baseline gap-0.5">
+                                    <span class="text-xs font-bold text-orange-500">{{ $currency }}</span>
+                                    <span id="linkedPopupPriceVal" class="text-lg sm:text-xl font-black text-orange-600">0.00</span>
+                                </div>
+                                <span class="text-[9px] text-orange-600/90 font-bold">POS Billing Rate</span>
+                            </div>
+
+                            <!-- Metric 4: Cost Price -->
+                            <div class="p-2.5 rounded-xl bg-slate-50/90 border border-slate-200 flex flex-col justify-between">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                                    <span>Cost Price</span>
+                                    <i class="fa-solid fa-receipt text-[11px] text-slate-400"></i>
+                                </div>
+                                <div class="flex items-baseline gap-0.5">
+                                    <span class="text-xs font-bold text-slate-400">{{ $currency }}</span>
+                                    <span id="linkedPopupCostVal" class="text-lg sm:text-xl font-black text-slate-700">0.00</span>
+                                </div>
+                                <span class="text-[9px] text-slate-400 font-medium">Purchase cost</span>
+                            </div>
+                        </div>
+
+                        <!-- Profit Margin & MRP Discount Bar -->
+                        <div id="linkedPopupMarginStrip" class="p-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </span>
+                                <div>
+                                    <div class="text-[10px] uppercase font-bold text-emerald-800">Profit Margin</div>
+                                    <div class="text-xs font-black text-emerald-700" id="linkedPopupProfitVal">+₹0.00 (0% margin)</div>
+                                </div>
+                            </div>
+                            <div id="linkedPopupDiscountBadge" class="text-right"></div>
+                        </div>
+
+                        <!-- Description Note (if available) -->
+                        <div id="linkedPopupDescWrapper" class="hidden">
+                            <p id="linkedPopupDescText" class="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100 line-clamp-2"></p>
+                        </div>
+
+                        <!-- Instant Action Bar -->
+                        <div class="pt-1 border-t border-slate-100 flex items-center gap-2">
+                            <button type="button" id="linkedPopupAddBtn" onclick="onTitleCardAddClick()"
+                                class="flex-1 py-2 px-3 bg-orange-600 hover:bg-orange-700 active:scale-98 text-white rounded-xl text-xs font-black shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 transition cursor-pointer">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add to Bill</span>
+                                <kbd class="px-1.5 py-0.5 rounded bg-orange-700 text-[10px] font-mono font-bold tracking-tight">↵ Enter</kbd>
+                            </button>
+                            <span class="text-[10px] text-slate-400 font-semibold px-1">↑↓ Move</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -935,6 +1066,7 @@
                         <p class="text-[11px] text-slate-400 mt-1">Try searching by barcode, food code, or dish name</p>
                     </div>
                 `;
+                hideSearchProductPreview();
                 return;
             }
 
@@ -1015,33 +1147,287 @@
             `;
 
             list.innerHTML = html;
+
+            // Automatically highlight first result and show linked popup
+            if (items.length > 0) {
+                highlightSearchItem(0);
+            }
         }
+
+        let activePreviewItemIndex = -1;
 
         function highlightSearchItem(index) {
             searchHighlightedIndex = index;
             document.querySelectorAll('.search-dropdown-item').forEach((el, idx) => {
                 if (idx === index) {
-                    el.classList.add('bg-orange-100/80', 'border-orange-500');
+                    el.classList.add('bg-orange-100/90', 'border-orange-500');
                     el.classList.remove('border-transparent');
                 } else {
-                    el.classList.remove('bg-orange-100/80', 'border-orange-500');
+                    el.classList.remove('bg-orange-100/90', 'border-orange-500');
                     el.classList.add('border-transparent');
                 }
             });
+            showSearchProductPreview(index);
         }
 
         function updateHighlightedSearchItem() {
             document.querySelectorAll('.search-dropdown-item').forEach((el, idx) => {
                 if (idx === searchHighlightedIndex) {
-                    el.classList.add('bg-orange-100/80', 'border-orange-500');
+                    el.classList.add('bg-orange-100/90', 'border-orange-500');
                     el.classList.remove('border-transparent');
                     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                 } else {
-                    el.classList.remove('bg-orange-100/80', 'border-orange-500');
+                    el.classList.remove('bg-orange-100/90', 'border-orange-500');
                     el.classList.add('border-transparent');
                 }
             });
+            showSearchProductPreview(searchHighlightedIndex);
         }
+
+        function showSearchProductPreview(index) {
+            if (index < 0 || !searchDropdownItems || !searchDropdownItems[index]) {
+                hideSearchProductPreview();
+                return;
+            }
+
+            activePreviewItemIndex = index;
+            const item = searchDropdownItems[index];
+            const card = document.getElementById('searchProductLinkedPopup');
+            const dropdown = document.getElementById('searchDropdown');
+            const row = document.getElementById('searchDropdownItem_' + index);
+
+            if (!card || !dropdown) return;
+
+            // 1. Calculate values
+            const isCombo = item.type === 'combo';
+            const price = parseFloat(item.price || 0);
+            const cost = parseFloat(item.cost_price || 0);
+            const mrp = parseFloat(item.mrp || item.price || 0);
+            const stock = parseFloat(item.stock || 0);
+            const tax = parseFloat(item.tax_rate !== undefined ? item.tax_rate : 5);
+
+            // Veg/Non-Veg/Combo Badge
+            const typeBadge = document.getElementById('linkedPopupTypeBadge');
+            if (typeBadge) {
+                if (isCombo) {
+                    typeBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-amber-950 flex items-center gap-1"><i class="fa-solid fa-layer-group text-[10px]"></i> Combo Pack</span>`;
+                } else if (item.is_veg) {
+                    typeBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500 text-white flex items-center gap-1"><i class="fa-solid fa-leaf text-[10px]"></i> Pure Veg</span>`;
+                } else {
+                    typeBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-500 text-white flex items-center gap-1"><i class="fa-solid fa-drumstick-bite text-[10px]"></i> Non-Veg</span>`;
+                }
+            }
+
+            // Category & Code
+            const catBadge = document.getElementById('linkedPopupCategoryBadge');
+            if (catBadge) catBadge.innerText = item.category || 'General';
+
+            const codeBadge = document.getElementById('linkedPopupCode');
+            if (codeBadge) codeBadge.innerText = item.code || '';
+
+            // Name
+            const nameEl = document.getElementById('linkedPopupName');
+            if (nameEl) nameEl.innerText = item.name || '';
+
+            // Barcode
+            const barcodeText = document.getElementById('linkedPopupBarcodeText');
+            if (barcodeText) barcodeText.innerText = item.barcode || item.code || '-';
+
+            // HSN Code
+            const hsnBadge = document.getElementById('linkedPopupHsnBadge');
+            if (hsnBadge) {
+                if (item.hsn_code) {
+                    hsnBadge.innerText = `HSN: ${item.hsn_code}`;
+                    hsnBadge.classList.remove('hidden');
+                } else {
+                    hsnBadge.classList.add('hidden');
+                }
+            }
+
+            // GST %
+            const gstBadge = document.getElementById('linkedPopupGstBadge');
+            if (gstBadge) gstBadge.innerText = `${tax.toFixed(1)}% GST`;
+
+            // Image Thumbnail / Food Icon
+            const imgContainer = document.getElementById('linkedPopupImageContainer');
+            if (imgContainer) {
+                if (item.image) {
+                    imgContainer.innerHTML = `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="w-full h-full object-cover">`;
+                } else {
+                    const iconClass = isCombo ? 'fa-layer-group text-amber-500' : (item.is_veg ? 'fa-leaf text-emerald-500' : 'fa-utensils text-orange-500');
+                    imgContainer.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100"><i class="fa-solid ${iconClass} text-2xl"></i></div>`;
+                }
+            }
+
+            // Stock Metric Box & Badge
+            const stockVal = document.getElementById('linkedPopupStockVal');
+            const stockBadge = document.getElementById('linkedPopupStockBadge');
+            const stockBox = document.getElementById('linkedPopupStockBox');
+            if (stockVal) stockVal.innerText = isCombo ? 'Available' : stock.toFixed(stock % 1 === 0 ? 0 : 2);
+            if (stockBadge && stockBox) {
+                if (isCombo) {
+                    stockBox.className = 'p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between transition';
+                    stockBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800">Combo Special</span>`;
+                } else if (stock > 10) {
+                    stockBox.className = 'p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between transition';
+                    stockBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check mr-1 text-[8px]"></i>In Stock</span>`;
+                } else if (stock > 0) {
+                    stockBox.className = 'p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between transition';
+                    stockBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1 text-[8px]"></i>Low Stock</span>`;
+                } else {
+                    stockBox.className = 'p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between transition';
+                    stockBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-100 text-rose-800"><i class="fa-solid fa-circle-xmark mr-1 text-[8px]"></i>Out of Stock</span>`;
+                }
+            }
+
+            // 4 Prices: MRP, Selling, Cost
+            const mrpVal = document.getElementById('linkedPopupMrpVal');
+            if (mrpVal) mrpVal.innerText = mrp.toFixed(2);
+
+            const priceVal = document.getElementById('linkedPopupPriceVal');
+            if (priceVal) priceVal.innerText = price.toFixed(2);
+
+            const costVal = document.getElementById('linkedPopupCostVal');
+            if (costVal) costVal.innerText = cost.toFixed(2);
+
+            // Margin & Profit Calculation
+            const profitVal = document.getElementById('linkedPopupProfitVal');
+            const discountBadge = document.getElementById('linkedPopupDiscountBadge');
+            const profitAmount = price - cost;
+            const marginPct = price > 0 ? ((profitAmount / price) * 100) : 0;
+
+            if (profitVal) {
+                if (cost > 0) {
+                    const sign = profitAmount >= 0 ? '+' : '';
+                    profitVal.innerText = `${sign}${CURRENCY}${profitAmount.toFixed(2)} (${sign}${marginPct.toFixed(1)}% margin)`;
+                    profitVal.className = profitAmount >= 0 ? 'text-xs font-black text-emerald-700' : 'text-xs font-black text-rose-700';
+                } else {
+                    profitVal.innerText = `Full Margin (Cost ${CURRENCY}0.00)`;
+                    profitVal.className = 'text-xs font-black text-slate-600';
+                }
+            }
+
+            if (discountBadge) {
+                if (mrp > price) {
+                    const disc = mrp - price;
+                    const discPct = Math.round((disc / mrp) * 100);
+                    discountBadge.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-purple-100 text-purple-800">Save ${CURRENCY}${disc.toFixed(2)} (${discPct}% OFF)</span>`;
+                } else {
+                    discountBadge.innerHTML = `<span class="text-[10px] text-slate-400 font-semibold">Standard MRP</span>`;
+                }
+            }
+
+            // Description / Kitchen Notes
+            const descWrapper = document.getElementById('linkedPopupDescWrapper');
+            const descText = document.getElementById('linkedPopupDescText');
+            if (descWrapper && descText) {
+                if (item.description && item.description.trim().length > 0) {
+                    descText.innerText = item.description;
+                    descWrapper.classList.remove('hidden');
+                } else {
+                    descWrapper.classList.add('hidden');
+                }
+            }
+
+            // 2. Intelligent Dynamic Positioning relative to highlighted row
+            const wasHidden = card.classList.contains('hidden');
+            card.classList.remove('hidden');
+            if (wasHidden) {
+                card.classList.remove('linked-popup-animate');
+                void card.offsetWidth;
+                card.classList.add('linked-popup-animate');
+            }
+            positionTitleCard(card, dropdown, row);
+        }
+
+        function positionTitleCard(card, dropdown, row) {
+            const dropdownRect = dropdown.getBoundingClientRect();
+            const cardWidth = card.offsetWidth || 350;
+            const cardHeight = card.offsetHeight || 370;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+
+            // Mobile screens (<768px): Dock as floating title card at the bottom
+            if (windowWidth < 768) {
+                card.style.position = 'fixed';
+                card.style.left = '10px';
+                card.style.right = '10px';
+                card.style.width = 'auto';
+                card.style.bottom = '10px';
+                card.style.top = 'auto';
+                return;
+            }
+
+            // Desktop / Tablet screens: Anchor adjacent to dropdown & track row
+            card.style.position = 'fixed';
+            card.style.right = 'auto';
+            card.style.bottom = 'auto';
+            card.style.width = '350px';
+
+            const rowRect = row ? row.getBoundingClientRect() : dropdownRect;
+            const spaceRight = windowWidth - dropdownRect.right;
+            const spaceLeft = dropdownRect.left;
+
+            if (spaceRight >= (cardWidth + 14)) {
+                // Position to the right of the search dropdown
+                card.style.left = `${dropdownRect.right + 10}px`;
+            } else if (spaceLeft >= (cardWidth + 14)) {
+                // Position to the left of the search dropdown
+                card.style.left = `${dropdownRect.left - cardWidth - 10}px`;
+            } else {
+                // Fallback to right margin of viewport
+                card.style.left = `${Math.max(10, windowWidth - cardWidth - 14)}px`;
+            }
+
+            // Vertical position smoothly tracks the highlighted row
+            let targetTop = row ? (rowRect.top - 12) : dropdownRect.top;
+            if (targetTop + cardHeight > windowHeight - 14) {
+                targetTop = windowHeight - cardHeight - 14;
+            }
+            if (targetTop < 14) {
+                targetTop = 14;
+            }
+
+            card.style.top = `${targetTop}px`;
+        }
+
+        function hideSearchProductPreview() {
+            const card = document.getElementById('searchProductLinkedPopup');
+            if (card) card.classList.add('hidden');
+            activePreviewItemIndex = -1;
+        }
+
+        function onTitleCardAddClick() {
+            if (activePreviewItemIndex >= 0 && searchDropdownItems && searchDropdownItems[activePreviewItemIndex]) {
+                onSelectDropdownItem(activePreviewItemIndex);
+            }
+        }
+
+        // Keep preview card dynamically positioned when dropdown table scrolls
+        const dropdownListEl = document.getElementById('searchDropdownList');
+        if (dropdownListEl) {
+            dropdownListEl.addEventListener('scroll', () => {
+                if (activePreviewItemIndex >= 0) {
+                    const card = document.getElementById('searchProductLinkedPopup');
+                    const dropdown = document.getElementById('searchDropdown');
+                    const row = document.getElementById('searchDropdownItem_' + activePreviewItemIndex);
+                    if (card && dropdown && !card.classList.contains('hidden')) {
+                        positionTitleCard(card, dropdown, row);
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            if (activePreviewItemIndex >= 0) {
+                const card = document.getElementById('searchProductLinkedPopup');
+                const dropdown = document.getElementById('searchDropdown');
+                const row = document.getElementById('searchDropdownItem_' + activePreviewItemIndex);
+                if (card && dropdown && !card.classList.contains('hidden')) {
+                    positionTitleCard(card, dropdown, row);
+                }
+            }
+        });
 
         async function onSearchKeyDown(e) {
             if (e.key === 'ArrowDown') {
@@ -1114,6 +1500,11 @@
                 const dropdown = document.getElementById('searchDropdown');
                 if (dropdown) dropdown.classList.remove('hidden');
                 isSearchDropdownOpen = true;
+                if (searchHighlightedIndex >= 0) {
+                    showSearchProductPreview(searchHighlightedIndex);
+                } else if (searchDropdownItems.length > 0) {
+                    highlightSearchItem(0);
+                }
             }
         }
 
@@ -1122,6 +1513,7 @@
             if (dropdown) dropdown.classList.add('hidden');
             isSearchDropdownOpen = false;
             searchHighlightedIndex = -1;
+            hideSearchProductPreview();
         }
 
         function onSelectDropdownItem(index) {
@@ -1146,7 +1538,7 @@
             const clearBtn = document.getElementById('clearSearchBtn');
             if (clearBtn) clearBtn.classList.add('hidden');
 
-            // 4. Hide dropdown and reset search state
+            // 4. Hide dropdown & linked popup and reset search state
             hideSearchDropdown();
             searchDropdownItems = [];
 
@@ -1167,10 +1559,14 @@
             fetchFoods();
         }
 
-        // Close dropdown when clicking outside
+        // Close dropdown when clicking outside (allowing clicks inside searchContainer or linkedPopup)
         document.addEventListener('click', (e) => {
             const searchContainer = document.getElementById('searchContainer');
-            if (searchContainer && !searchContainer.contains(e.target)) {
+            const previewCard = document.getElementById('searchProductLinkedPopup');
+            if (
+                searchContainer && !searchContainer.contains(e.target) &&
+                (!previewCard || !previewCard.contains(e.target))
+            ) {
                 hideSearchDropdown();
             }
         });

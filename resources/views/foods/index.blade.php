@@ -73,6 +73,7 @@
                         <th class="py-3 px-4">Category</th>
                         <th class="py-3 px-4 text-center">Type</th>
                         <th class="py-3 px-4 text-right">Sale Price</th>
+                        <th class="py-3 px-4 text-right">Cost Price</th>
                         <th class="py-3 px-4 text-right">MRP</th>
                         <th class="py-3 px-4 text-center">Stock</th>
                         <th class="py-3 px-4 text-center">GST %</th>
@@ -109,6 +110,9 @@
                         </td>
                         <td class="py-3 px-4 text-right font-black text-slate-900 text-sm">
                             {{ $currency }}{{ number_format($food->price, 2) }}
+                        </td>
+                        <td class="py-3 px-4 text-right font-semibold text-slate-500 text-xs">
+                            {{ $currency }}{{ number_format($food->cost_price ?? 0, 2) }}
                         </td>
                         <td class="py-3 px-4 text-right font-semibold text-slate-600 text-xs">
                             {{ $currency }}{{ number_format($food->mrp ?: $food->price, 2) }}
@@ -228,6 +232,12 @@
                 </div>
 
                 <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Cost Price / Purchase ({{ $currency }})</label>
+                    <input type="number" step="0.01" name="cost_price" id="foodCostPrice" min="0" placeholder="0.00"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-bold text-slate-700">
+                </div>
+
+                <div>
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">MRP Rate ({{ $currency }})</label>
                     <input type="number" step="0.01" name="mrp" id="foodMrp" min="0" placeholder="0.00"
                         class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 font-bold">
@@ -323,6 +333,7 @@
         document.getElementById('foodHsn').value = '';
         document.getElementById('foodName').value = '';
         document.getElementById('foodPrice').value = '';
+        document.getElementById('foodCostPrice').value = '';
         document.getElementById('foodMrp').value = '';
         document.getElementById('foodStock').value = '0';
         document.getElementById('foodTax').value = '5.00';
@@ -343,6 +354,7 @@
         document.getElementById('foodName').value = food.name;
         document.getElementById('foodCat').value = food.category_id;
         document.getElementById('foodPrice').value = food.price;
+        document.getElementById('foodCostPrice').value = food.cost_price || '';
         document.getElementById('foodMrp').value = food.mrp || food.price;
         document.getElementById('foodStock').value = food.stock || 0;
         document.getElementById('foodTax').value = food.tax_rate;

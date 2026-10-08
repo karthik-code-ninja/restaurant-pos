@@ -16,8 +16,11 @@ return new class extends Migration
             if (!Schema::hasColumn('foods', 'barcode')) {
                 $table->string('barcode', 100)->nullable()->after('code')->index();
             }
+            if (!Schema::hasColumn('foods', 'cost_price')) {
+                $table->decimal('cost_price', 10, 2)->default(0.00)->after('price');
+            }
             if (!Schema::hasColumn('foods', 'mrp')) {
-                $table->decimal('mrp', 10, 2)->default(0.00)->after('price');
+                $table->decimal('mrp', 10, 2)->default(0.00)->after('cost_price');
             }
             if (!Schema::hasColumn('foods', 'stock')) {
                 $table->decimal('stock', 12, 3)->default(0.000)->after('mrp');
