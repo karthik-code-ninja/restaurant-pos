@@ -286,6 +286,12 @@
             </tr>
             @endif
             @endforeach
+            @if(!empty($receiptData['bill']['customer_name']) && $receiptData['bill']['customer_balance'] !== null)
+            <tr style="border-top: 1px dashed #ccc;">
+                <td style="padding-top: 3px; font-weight: bold;">Customer Balance:</td>
+                <td class="text-right font-bold" style="padding-top: 3px;">{{ $receiptData['bill']['customer_formatted_balance'] }}</td>
+            </tr>
+            @endif
         </table>
         <div class="divider"></div>
         @endif

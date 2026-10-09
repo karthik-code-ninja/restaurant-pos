@@ -20,6 +20,7 @@ class Bill extends Model
         'waiter_id',
         'waiter_name',
         'status', // draft, held, pending, completed, cancelled
+        'customer_id',
         'customer_name',
         'customer_phone',
         'subtotal',
@@ -65,6 +66,16 @@ class Bill extends Model
             'cancelled_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function customerLedgers(): HasMany
+    {
+        return $this->hasMany(CustomerLedger::class);
     }
 
     public function table(): BelongsTo

@@ -157,6 +157,12 @@
 
                 @if(auth()->user()->hasPermission('inventory.view'))
                 <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 pt-3 pb-1">Operations</div>
+                @if(auth()->user()->hasPermission('customer.view'))
+                <a href="{{ route('customers.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('customers.*') ? 'bg-orange-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-address-book w-5 text-center"></i>
+                    <span>Customers & Ledger</span>
+                </a>
+                @endif
                 <a href="{{ route('inventory.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('inventory.*') ? 'bg-orange-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
                     <i class="fa-solid fa-boxes-stacked w-5 text-center"></i>
                     <span>Stock & Inventory</span>

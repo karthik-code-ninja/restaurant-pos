@@ -5,21 +5,18 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Setting;
-use Illuminate\Support\Facades\Auth;
 
 class ReceiptPrintService
 {
     /**
      * Prepare full receipt data and register print/reprint/duplicate action.
      *
-     * @param Bill $bill
-     * @param string $printType 'print'|'reprint'|'duplicate'
-     * @param string $copyType 'customer'|'restaurant'|'both'
-     * @return array
+     * @param  string  $printType  'print'|'reprint'|'duplicate'
+     * @param  string  $copyType  'customer'|'restaurant'|'both'
      */
     public function prepareReceipt(Bill $bill, string $printType = 'print', string $copyType = 'customer'): array
     {
-        $bill->loadMissing(['items.addons', 'payments.receivedByUser', 'table', 'cashier']);
+        $bill->loadMissing(['items.addons', 'payments.receivedByUser', 'table', 'cashier', 'customer']);
 
         // Update counters and audit log
         if ($printType === 'reprint') {
@@ -62,7 +59,7 @@ class ReceiptPrintService
         $upiUri = '';
         if ($upiId) {
             $amt = number_format($bill->grand_total, 2, '.', '');
-            $upiUri = "upi://pay?pa={$upiId}&pn=" . urlencode($upiPayee) . "&am={$amt}&cu=INR&tn=" . urlencode("Bill " . $bill->invoice_number);
+            $upiUri = "upi://pay?pa={$upiId}&pn=".urlencode($upiPayee)."&am={$amt}&cu=INR&tn=".urlencode('Bill '.$bill->invoice_number);
         }
 
         return [
@@ -100,8 +97,11 @@ class ReceiptPrintService
                 'order_type' => ucfirst($bill->order_type),
                 'table_number' => $bill->table?->table_number,
                 'table_name' => $bill->table?->name,
+                'customer_id' => $bill->customer_id,
                 'customer_name' => $bill->customer_name,
                 'customer_phone' => $bill->customer_phone,
+                'customer_balance' => $bill->customer ? (float) $bill->customer->balance : null,
+                'customer_formatted_balance' => $bill->customer ? $bill->customer->formatted_balance : null,
                 'subtotal' => $bill->subtotal,
                 'discount_amount' => $bill->discount_amount,
                 'discount_type' => $bill->discount_type,

@@ -9,11 +9,14 @@ use App\Models\BillItem;
 use App\Models\BillItemAddon;
 use App\Models\Category;
 use App\Models\Combo;
+use App\Models\Customer;
 use App\Models\Food;
 use App\Models\Payment;
 use App\Models\RestaurantTable;
 use App\Models\Setting;
+use App\Models\User;
 use App\Services\BillCalculationService;
+use App\Services\CustomerLedgerService;
 use App\Services\InventoryService;
 use App\Services\InvoiceNumberService;
 use App\Services\PrinterProfileService;
@@ -31,7 +34,8 @@ class PosController extends Controller
         protected BillCalculationService $calculationService,
         protected InventoryService $inventoryService,
         protected InvoiceNumberService $invoiceNumberService,
-        protected ReceiptPrintService $receiptPrintService
+        protected ReceiptPrintService $receiptPrintService,
+        protected CustomerLedgerService $customerLedgerService
     ) {}
 
     /**
@@ -43,7 +47,7 @@ class PosController extends Controller
         $tables = RestaurantTable::orderBy('floor')->orderBy('table_number')->get();
         $addons = AddOn::active()->orderBy('name')->get();
         $combos = Combo::active()->with('foods')->get();
-        $waiters = \App\Models\User::where('status', true)->with('role')->orderBy('name')->get();
+        $waiters = User::where('status', true)->with('role')->orderBy('name')->get();
         $currency = Setting::get('currency_symbol', '₹');
         $taxType = Setting::get('tax_type', 'exclusive');
         $defaultGst = Setting::get('default_gst_rate', '5.00');
@@ -52,18 +56,35 @@ class PosController extends Controller
         // Check if there is an active table bill requested
         $activeBill = null;
         if ($request->filled('table_id')) {
-            $activeBill = Bill::with(['items.addons', 'table', 'waiter'])
+            $activeBill = Bill::with(['items.addons', 'table', 'waiter', 'customer'])
                 ->where('table_id', $request->table_id)
                 ->whereIn('status', ['pending', 'held', 'draft'])
                 ->latest()
                 ->first();
         } elseif ($request->filled('bill_id')) {
-            $activeBill = Bill::with(['items.addons', 'table', 'waiter'])->find($request->bill_id);
+            $activeBill = Bill::with(['items.addons', 'table', 'waiter', 'customer'])->find($request->bill_id);
         }
 
         $printerProfiles = PrinterProfileService::getAllProfiles();
         $kitchenPrinters = PrinterProfileService::getKitchenPrinters();
         $counterPrinters = PrinterProfileService::getCounterPrinters();
+
+        $activeCustomerPayload = null;
+        if (! empty($activeBill?->customer)) {
+            $cust = $activeBill->customer;
+            $custBal = (float) $cust->balance;
+            $activeCustomerPayload = [
+                'id' => $cust->id,
+                'name' => $cust->name,
+                'phone' => $cust->phone ?: '',
+                'email' => $cust->email ?: '',
+                'balance' => $custBal,
+                'credit_limit' => (float) $cust->credit_limit,
+                'is_due' => $custBal > 0.001,
+                'is_advance' => $custBal < -0.001,
+                'formatted_balance' => $cust->formatted_balance,
+            ];
+        }
 
         return view('pos.index', compact(
             'categories',
@@ -76,6 +97,7 @@ class PosController extends Controller
             'defaultGst',
             'printerType',
             'activeBill',
+            'activeCustomerPayload',
             'printerProfiles',
             'kitchenPrinters',
             'counterPrinters'
@@ -90,7 +112,7 @@ class PosController extends Controller
         $query = Food::active()->with('category');
 
         $isGlobal = $request->boolean('global_search');
-        if (!$isGlobal && $request->filled('category_id') && $request->category_id !== 'all') {
+        if (! $isGlobal && $request->filled('category_id') && $request->category_id !== 'all') {
             $query->where('category_id', $request->category_id);
         }
 
@@ -101,7 +123,7 @@ class PosController extends Controller
                     ->orWhere('code', 'like', "%{$q}%")
                     ->orWhere('barcode', 'like', "%{$q}%");
             });
-            $query->orderByRaw("CASE WHEN barcode = ? THEN 1 WHEN code = ? THEN 2 WHEN barcode LIKE ? THEN 3 WHEN code LIKE ? THEN 4 WHEN name LIKE ? THEN 5 ELSE 6 END", [$q, $q, "{$q}%", "{$q}%", "{$q}%"]);
+            $query->orderByRaw('CASE WHEN barcode = ? THEN 1 WHEN code = ? THEN 2 WHEN barcode LIKE ? THEN 3 WHEN code LIKE ? THEN 4 WHEN name LIKE ? THEN 5 ELSE 6 END', [$q, $q, "{$q}%", "{$q}%", "{$q}%"]);
         }
 
         if ($request->has('veg_only') && $request->boolean('veg_only')) {
@@ -124,7 +146,7 @@ class PosController extends Controller
                 'is_veg' => (bool) $f->is_veg,
                 'category' => $f->category?->name,
                 'description' => $f->description,
-                'image' => $f->image ? asset('storage/' . $f->image) : null,
+                'image' => $f->image ? asset('storage/'.$f->image) : null,
             ];
         });
 
@@ -136,7 +158,7 @@ class PosController extends Controller
                 $sub->where('name', 'like', "%{$q}%")
                     ->orWhere('code', 'like', "%{$q}%");
             });
-            $comboQuery->orderByRaw("CASE WHEN code = ? THEN 1 WHEN code LIKE ? THEN 2 WHEN name LIKE ? THEN 3 ELSE 4 END", [$q, "{$q}%", "{$q}%"]);
+            $comboQuery->orderByRaw('CASE WHEN code = ? THEN 1 WHEN code LIKE ? THEN 2 WHEN name LIKE ? THEN 3 ELSE 4 END', [$q, "{$q}%", "{$q}%"]);
         }
         $combos = $comboQuery->get()->map(function ($c) {
             return [
@@ -192,6 +214,7 @@ class PosController extends Controller
             'waiter_id' => ['nullable', 'exists:users,id'],
             'waiter_name' => ['nullable', 'string', 'max:100'],
             'status' => ['required', 'in:draft,held,pending'],
+            'customer_id' => ['nullable', 'exists:customers,id'],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],
@@ -207,7 +230,7 @@ class PosController extends Controller
             'items.*.addons' => ['nullable', 'array'],
         ]);
 
-        return DB::transaction(function () use ($validated, $request) {
+        return DB::transaction(function () use ($validated) {
             $calculation = $this->calculationService->calculate(
                 $validated['items'],
                 $validated['discount_type'] ?? 'fixed',
@@ -218,7 +241,7 @@ class PosController extends Controller
                 return response()->json(['success' => false, 'message' => 'No valid items found in cart.'], 422);
             }
 
-            if (!empty($validated['bill_id'])) {
+            if (! empty($validated['bill_id'])) {
                 $bill = Bill::lockForUpdate()->findOrFail($validated['bill_id']);
                 if (in_array($bill->status, ['completed', 'cancelled'])) {
                     return response()->json(['success' => false, 'message' => 'Cannot edit a closed or cancelled bill.'], 422);
@@ -231,6 +254,7 @@ class PosController extends Controller
                     'waiter_id' => $validated['waiter_id'] ?? $bill->waiter_id,
                     'waiter_name' => $validated['waiter_name'] ?? $bill->waiter_name,
                     'status' => $validated['status'],
+                    'customer_id' => $validated['customer_id'] ?? $bill->customer_id,
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
                     'subtotal' => $calculation['subtotal'],
@@ -268,6 +292,7 @@ class PosController extends Controller
                     'waiter_id' => $validated['waiter_id'] ?? null,
                     'waiter_name' => $validated['waiter_name'] ?? null,
                     'status' => $validated['status'],
+                    'customer_id' => $validated['customer_id'] ?? null,
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
                     'subtotal' => $calculation['subtotal'],
@@ -316,7 +341,7 @@ class PosController extends Controller
                 ]);
 
                 // Save addons if any
-                if (!empty($itemData['addons'])) {
+                if (! empty($itemData['addons'])) {
                     foreach ($itemData['addons'] as $addon) {
                         BillItemAddon::create([
                             'bill_item_id' => $billItem->id,
@@ -360,6 +385,7 @@ class PosController extends Controller
             'table_id' => ['nullable', 'required_if:order_type,table', 'exists:restaurant_tables,id'],
             'waiter_id' => ['nullable', 'exists:users,id'],
             'waiter_name' => ['nullable', 'string', 'max:100'],
+            'customer_id' => ['nullable', 'exists:customers,id'],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],
@@ -374,7 +400,7 @@ class PosController extends Controller
             'items.*.notes' => ['nullable', 'string'],
             'items.*.addons' => ['nullable', 'array'],
             'payments' => ['required', 'array', 'min:1'],
-            'payments.*.payment_method' => ['required', 'in:cash,upi,card'],
+            'payments.*.payment_method' => ['required', 'in:cash,upi,card,credit'],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.reference_number' => ['nullable', 'string', 'max:100'],
         ]);
@@ -392,12 +418,38 @@ class PosController extends Controller
             if (abs($paymentTotal - $calculation['grand_total']) > 0.05) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Payment amount (₹{$paymentTotal}) does not match bill grand total (₹{$calculation['grand_total']})."
+                    'message' => "Payment amount (₹{$paymentTotal}) does not match bill grand total (₹{$calculation['grand_total']}).",
+                ], 422);
+            }
+
+            // Customer verification for credit billing
+            $hasCreditPayment = collect($validated['payments'])->contains(fn ($p) => $p['payment_method'] === 'credit');
+            $customerId = $validated['customer_id'] ?? null;
+
+            if (! $customerId && ! empty($validated['customer_phone'])) {
+                $existing = Customer::where('phone', $validated['customer_phone'])->first();
+                if ($existing) {
+                    $customerId = $existing->id;
+                } elseif ($hasCreditPayment && ! empty($validated['customer_name'])) {
+                    $created = Customer::create([
+                        'name' => $validated['customer_name'],
+                        'phone' => $validated['customer_phone'],
+                        'balance' => 0.00,
+                        'status' => true,
+                    ]);
+                    $customerId = $created->id;
+                }
+            }
+
+            if ($hasCreditPayment && ! $customerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A registered customer is required to record a bill on Credit / Ledger. Please choose or add a customer.',
                 ], 422);
             }
 
             // 3. Find or Create Bill
-            if (!empty($validated['bill_id'])) {
+            if (! empty($validated['bill_id'])) {
                 $bill = Bill::lockForUpdate()->findOrFail($validated['bill_id']);
                 if ($bill->status === 'completed') {
                     return response()->json(['success' => false, 'message' => 'This bill has already been completed.'], 422);
@@ -408,6 +460,7 @@ class PosController extends Controller
                     'waiter_id' => $validated['waiter_id'] ?? $bill->waiter_id,
                     'waiter_name' => $validated['waiter_name'] ?? $bill->waiter_name,
                     'status' => 'completed',
+                    'customer_id' => $customerId ?? $bill->customer_id,
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
                     'subtotal' => $calculation['subtotal'],
@@ -437,6 +490,7 @@ class PosController extends Controller
                     'waiter_id' => $validated['waiter_id'] ?? null,
                     'waiter_name' => $validated['waiter_name'] ?? null,
                     'status' => 'completed',
+                    'customer_id' => $customerId,
                     'customer_name' => $validated['customer_name'] ?? null,
                     'customer_phone' => $validated['customer_phone'] ?? null,
                     'subtotal' => $calculation['subtotal'],
@@ -478,7 +532,7 @@ class PosController extends Controller
                     'notes' => $itemData['notes'] ?? null,
                 ]);
 
-                if (!empty($itemData['addons'])) {
+                if (! empty($itemData['addons'])) {
                     foreach ($itemData['addons'] as $addon) {
                         BillItemAddon::create([
                             'bill_item_id' => $billItem->id,
@@ -493,7 +547,7 @@ class PosController extends Controller
                 }
             }
 
-            // 5. Save Payments
+            // 5. Save Payments & Record Customer Ledger if Credit
             foreach ($validated['payments'] as $payment) {
                 Payment::create([
                     'bill_id' => $bill->id,
@@ -502,6 +556,19 @@ class PosController extends Controller
                     'reference_number' => $payment['reference_number'] ?? null,
                     'received_by' => Auth::id(),
                 ]);
+
+                if ($payment['payment_method'] === 'credit' && $customerId) {
+                    $customer = Customer::find($customerId);
+                    if ($customer) {
+                        $this->customerLedgerService->recordBillCredit(
+                            customer: $customer,
+                            bill: $bill,
+                            amount: (float) $payment['amount'],
+                            userId: Auth::id(),
+                            notes: ! empty($payment['reference_number']) ? "Bill #{$bill->invoice_number} (Ref: {$payment['reference_number']})" : null
+                        );
+                    }
+                }
             }
 
             // 6. Safe Inventory Deduction
@@ -520,14 +587,14 @@ class PosController extends Controller
                 action: 'bill_completed',
                 module: 'pos',
                 referenceId: (string) $bill->id,
-                description: "Bill #{$bill->invoice_number} completed for ₹{$bill->grand_total} via " . implode(', ', array_column($validated['payments'], 'payment_method'))
+                description: "Bill #{$bill->invoice_number} completed for ₹{$bill->grand_total} via ".implode(', ', array_column($validated['payments'], 'payment_method'))
             );
 
             // 9. Hardware Counter Printer Routing
             $counterProfiles = PrinterProfileService::getCounterPrinters();
             $directPrintStatus = [];
             foreach ($counterProfiles as $cProf) {
-                if (($cProf['connection_type'] ?? '') === 'network' && !empty($cProf['ip_address'])) {
+                if (($cProf['connection_type'] ?? '') === 'network' && ! empty($cProf['ip_address'])) {
                     $receiptData = $this->receiptPrintService->prepareReceipt($bill);
                     $escpos = PrinterProfileService::generateReceiptEscpos($receiptData, $cProf);
                     $res = PrinterProfileService::printRawEscpos($cProf['ip_address'], (int) ($cProf['port'] ?? 9100), $escpos);
@@ -603,6 +670,9 @@ class PosController extends Controller
             // Reverse inventory if deducted
             $this->inventoryService->reverseStockForBill($bill, $reason);
 
+            // Revert customer ledger entries if this was a credit bill
+            $this->customerLedgerService->revertBill($bill, $reason);
+
             $bill->update([
                 'status' => 'cancelled',
                 'cancellation_reason' => $reason,
@@ -622,7 +692,7 @@ class PosController extends Controller
                 action: 'bill_cancelled',
                 module: 'pos',
                 referenceId: (string) $bill->id,
-                description: "Bill #{$bill->invoice_number} cancelled by " . Auth::user()->name . ". Reason: {$reason}"
+                description: "Bill #{$bill->invoice_number} cancelled by ".Auth::user()->name.". Reason: {$reason}"
             );
 
             return response()->json([
@@ -651,7 +721,7 @@ class PosController extends Controller
                     ->get();
 
                 foreach ($tableBills as $tBill) {
-                    if (!$invoiceNum) {
+                    if (! $invoiceNum) {
                         $invoiceNum = $tBill->invoice_number;
                     }
                     $this->inventoryService->reverseStockForBill($tBill, 'POS cart cleared by cashier');
@@ -680,7 +750,7 @@ class PosController extends Controller
 
                     if ($bill->table_id) {
                         RestaurantTable::where('id', $bill->table_id)->update(['status' => 'available']);
-                        if (!$releasedTable) {
+                        if (! $releasedTable) {
                             $releasedTable = RestaurantTable::find($bill->table_id);
                         }
                     }
@@ -709,15 +779,15 @@ class PosController extends Controller
                     action: 'bill_cleared',
                     module: 'pos',
                     referenceId: (string) ($billId ?: $invoiceNum),
-                    description: "Order #{$invoiceNum} cleared and removed from active POS by " . (Auth::user()?->name ?? 'Cashier')
+                    description: "Order #{$invoiceNum} cleared and removed from active POS by ".(Auth::user()?->name ?? 'Cashier')
                 );
             }
 
             return response()->json([
                 'success' => true,
-                'message' => $invoiceNum 
-                    ? "Order #{$invoiceNum} cleared from database and table released." 
-                    : "Cart cleared and table set to available.",
+                'message' => $invoiceNum
+                    ? "Order #{$invoiceNum} cleared from database and table released."
+                    : 'Cart cleared and table set to available.',
                 'table_id' => $tableId,
                 'table_number' => $releasedTable ? $releasedTable->table_number : null,
             ]);
@@ -757,7 +827,7 @@ class PosController extends Controller
                 if ($splitQty > $currentQty) {
                     return response()->json([
                         'success' => false,
-                        'message' => "Split quantity ({$splitQty}) for {$item->item_name} exceeds existing quantity ({$currentQty})."
+                        'message' => "Split quantity ({$splitQty}) for {$item->item_name} exceeds existing quantity ({$currentQty}).",
                     ], 422);
                 }
 
@@ -834,7 +904,7 @@ class PosController extends Controller
             }
 
             // Update remaining original bill
-            if (!empty($remainingCart)) {
+            if (! empty($remainingCart)) {
                 $remCalc = $this->calculationService->calculate($remainingCart, $bill->discount_type, (float) $bill->discount_value);
                 $bill->update([
                     'subtotal' => $remCalc['subtotal'],
@@ -890,7 +960,7 @@ class PosController extends Controller
      */
     public function resumeBill(Bill $bill): JsonResponse
     {
-        $bill->loadMissing(['items.addons', 'table']);
+        $bill->loadMissing(['items.addons', 'table', 'customer']);
 
         return response()->json([
             'success' => true,
@@ -901,8 +971,11 @@ class PosController extends Controller
                 'table_id' => $bill->table_id,
                 'waiter_id' => $bill->waiter_id,
                 'waiter_name' => $bill->waiter_name,
+                'customer_id' => $bill->customer_id,
                 'customer_name' => $bill->customer_name,
                 'customer_phone' => $bill->customer_phone,
+                'customer_balance' => $bill->customer ? (float) $bill->customer->balance : null,
+                'customer_formatted_balance' => $bill->customer ? $bill->customer->formatted_balance : null,
                 'discount_type' => $bill->discount_type,
                 'discount_value' => $bill->discount_value,
                 'notes' => $bill->notes,
@@ -953,10 +1026,10 @@ class PosController extends Controller
 
             // 2. Find or create active bill for this table
             $bill = null;
-            if (!empty($validated['bill_id'])) {
+            if (! empty($validated['bill_id'])) {
                 $bill = Bill::lockForUpdate()->find($validated['bill_id']);
             }
-            if (!$bill) {
+            if (! $bill) {
                 $bill = Bill::where('table_id', $table->id)
                     ->whereIn('status', ['pending', 'held', 'draft'])
                     ->latest()
@@ -964,7 +1037,7 @@ class PosController extends Controller
                     ->first();
             }
 
-            if (!$bill) {
+            if (! $bill) {
                 $invoiceNum = $this->invoiceNumberService->generate();
                 $bill = Bill::create([
                     'invoice_number' => $invoiceNum,
@@ -1008,7 +1081,7 @@ class PosController extends Controller
             $existingItems = $bill->items()->get();
             $printedQtyMap = [];
             foreach ($existingItems as $ei) {
-                $key = "{$ei->item_type}_{$ei->item_id}_" . trim((string)$ei->notes);
+                $key = "{$ei->item_type}_{$ei->item_id}_".trim((string) $ei->notes);
                 $printedQtyMap[$key] = ($printedQtyMap[$key] ?? 0) + (float) $ei->kot_printed_qty;
             }
 
@@ -1018,7 +1091,7 @@ class PosController extends Controller
             $bill->items()->delete();
 
             foreach ($calculation['items'] as $itemData) {
-                $key = "{$itemData['item_type']}_{$itemData['item_id']}_" . trim((string)($itemData['notes'] ?? ''));
+                $key = "{$itemData['item_type']}_{$itemData['item_id']}_".trim((string) ($itemData['notes'] ?? ''));
                 $prevPrinted = $printedQtyMap[$key] ?? 0;
                 $currentQty = (float) $itemData['quantity'];
                 $deltaQty = max(0, $currentQty - $prevPrinted);
@@ -1054,7 +1127,7 @@ class PosController extends Controller
                     'notes' => $itemData['notes'] ?? null,
                 ]);
 
-                if (!empty($itemData['addons'])) {
+                if (! empty($itemData['addons'])) {
                     foreach ($itemData['addons'] as $addon) {
                         BillItemAddon::create([
                             'bill_item_id' => $billItem->id,
@@ -1111,14 +1184,14 @@ class PosController extends Controller
                 action: 'kot_printed',
                 module: 'pos',
                 referenceId: (string) $bill->id,
-                description: "KOT #{$bill->kot_count} printed for Table {$table->table_number} (" . count($kotItemsToPrint) . " new items)"
+                description: "KOT #{$bill->kot_count} printed for Table {$table->table_number} (".count($kotItemsToPrint).' new items)'
             );
 
             // Hardware Kitchen Printer Routing
             $kitchenProfiles = PrinterProfileService::getKitchenPrinters();
             $directPrintStatus = [];
             foreach ($kitchenProfiles as $kProf) {
-                if (($kProf['connection_type'] ?? '') === 'network' && !empty($kProf['ip_address'])) {
+                if (($kProf['connection_type'] ?? '') === 'network' && ! empty($kProf['ip_address'])) {
                     $escpos = PrinterProfileService::generateKotEscpos($kotBatchData, $kProf);
                     $res = PrinterProfileService::printRawEscpos($kProf['ip_address'], (int) ($kProf['port'] ?? 9100), $escpos);
                     $directPrintStatus[] = [
@@ -1131,7 +1204,7 @@ class PosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "KOT #{$bill->kot_count} generated with " . count($kotItemsToPrint) . " new item(s) for Table {$table->table_number}!",
+                'message' => "KOT #{$bill->kot_count} generated with ".count($kotItemsToPrint)." new item(s) for Table {$table->table_number}!",
                 'bill_id' => $bill->id,
                 'invoice_number' => $bill->invoice_number,
                 'kot_number' => $bill->kot_count,
@@ -1153,7 +1226,7 @@ class PosController extends Controller
         $cacheKey = "kot_batch_{$bill->id}_{$kotNum}";
         $kotData = cache()->get($cacheKey);
 
-        if (!$kotData || $isReprint) {
+        if (! $kotData || $isReprint) {
             $bill->loadMissing(['table', 'waiter', 'items.addons']);
             $kotData = [
                 'kot_number' => $kotNum ?: ($bill->kot_count ?: 1),
@@ -1166,11 +1239,11 @@ class PosController extends Controller
                 'date' => $bill->created_at->format('d/m/Y'),
                 'time' => now()->format('h:i A'),
                 'printer_type' => Setting::get('printer_type', '80mm'),
-                'items' => $bill->items->map(fn($i) => [
+                'items' => $bill->items->map(fn ($i) => [
                     'name' => $i->item_name,
                     'quantity' => (float) $i->quantity,
                     'notes' => $i->notes,
-                    'addons' => $i->addons->map(fn($a) => ['name' => $a->name])->toArray(),
+                    'addons' => $i->addons->map(fn ($a) => ['name' => $a->name])->toArray(),
                 ])->toArray(),
                 'total_quantity' => (float) $bill->items->sum('quantity'),
                 'is_reprint' => true,

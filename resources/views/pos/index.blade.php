@@ -395,10 +395,60 @@
 
             <!-- Cart Totals & Bill Summary (Bottom) -->
             <div class="p-3.5 sm:p-4 border-t border-slate-200 bg-slate-50 space-y-2 flex-shrink-0">
-                <!-- Customer Details Inputs -->
-                <div class="flex items-center gap-2 text-xs">
-                    <input type="text" id="custName" placeholder="Customer Name (optional)" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
-                    <input type="text" id="custPhone" placeholder="Phone Number" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
+                <!-- Customer Chooser & Ledger Info -->
+                <div class="space-y-1.5">
+                    <input type="hidden" id="selectedCustomerId" value="{{ $activeBill?->customer_id ?? '' }}">
+
+                    <!-- Selected Customer Pill (Active Customer with Balance) -->
+                    <div id="selectedCustomerPill" class="{{ !empty($activeBill?->customer) ? '' : 'hidden' }} p-2 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between text-xs transition">
+                        <div class="overflow-hidden pr-1">
+                            <div class="flex items-center gap-1.5 font-bold text-slate-900 truncate">
+                                <i class="fa-solid fa-user-check text-orange-600 text-xs"></i>
+                                <span id="pillCustomerName" class="truncate">{{ $activeBill?->customer?->name ?? 'Customer' }}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] mt-0.5">
+                                <span id="pillCustomerPhone" class="text-slate-500 font-mono">{{ $activeBill?->customer?->phone ?? '' }}</span>
+                                <span id="pillCustomerBalanceBadge" class="font-black {{ ($activeBill?->customer?->balance ?? 0) > 0.001 ? 'text-rose-700' : 'text-emerald-700' }}">
+                                    {{ $activeBill?->customer?->formatted_balance ?? 'Clear: ₹0.00' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="previewCustomerLedger()" class="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-indigo-700 transition" title="Preview Customer Ledger Statement">
+                                <i class="fa-solid fa-book"></i> Ledger
+                            </button>
+                            <button type="button" onclick="clearSelectedCustomer()" class="w-6 h-6 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 text-slate-400 hover:text-rose-600 flex items-center justify-center text-xs transition" title="Clear / Switch Customer">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Customer Search & Inputs (Shown when no customer chosen) -->
+                    <div id="customerSearchContainer" class="{{ !empty($activeBill?->customer) ? 'hidden' : '' }} space-y-1.5">
+                        <div class="relative">
+                            <div class="flex items-center gap-1">
+                                <div class="relative flex-1">
+                                    <input type="text" id="custSearchInput" placeholder="Search customer (name/phone)..." autocomplete="off" oninput="onCustomerSearchInput(this.value)" onfocus="onCustomerSearchInput(this.value)" class="w-full pl-7 pr-2 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-2 text-slate-400 text-xs">
+                                        <i class="fa-solid fa-address-book text-[11px]"></i>
+                                    </span>
+                                </div>
+                                <button type="button" onclick="openPosQuickCustomerModal()" class="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 shadow-xs" title="Add New Customer">
+                                    <i class="fa-solid fa-user-plus text-[10px]"></i> +New
+                                </button>
+                            </div>
+                            <!-- Autocomplete Dropdown -->
+                            <div id="customerSearchResults" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-40 max-h-52 overflow-y-auto hidden divide-y divide-slate-100">
+                                <!-- Dynamic search results -->
+                            </div>
+                        </div>
+
+                        <!-- Manual Walk-in inputs (Auto-syncs or manual typing) -->
+                        <div class="flex items-center gap-2 text-xs">
+                            <input type="text" id="custName" value="{{ $activeBill?->customer_name ?? '' }}" placeholder="Name (walk-in guest)" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
+                            <input type="text" id="custPhone" value="{{ $activeBill?->customer_phone ?? '' }}" placeholder="Phone Number" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Discount Input -->
@@ -522,7 +572,7 @@
                 <!-- Payment Method Tabs -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Payment Method</label>
-                    <div class="grid grid-cols-4 gap-1.5 sm:gap-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
                         <button type="button" onclick="selectPayMethod('cash')" id="payTab_cash" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
                             <i class="fa-solid fa-money-bill-wave text-base"></i>
                             <span>Cash</span>
@@ -535,53 +585,120 @@
                             <i class="fa-solid fa-credit-card text-base"></i>
                             <span>Card</span>
                         </button>
-                        <button type="button" onclick="selectPayMethod('multimode')" id="payTab_multimode" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-[11px] sm:text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
-                            <i class="fa-solid fa-arrows-split-up-and-left text-base text-purple-600"></i>
-                            <span>Multi</span>
+                        <button type="button" onclick="selectPayMethod('credit')" id="payTab_credit" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
+                            <i class="fa-solid fa-book-bookmark text-base text-rose-600"></i>
+                            <span>Credit (Due)</span>
                         </button>
+                        <button type="button" onclick="selectPayMethod('multimode')" id="payTab_multimode" class="pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation">
+                            <i class="fa-solid fa-arrows-split-up-and-left text-base text-purple-600"></i>
+                            <span>Split Pay</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Credit (Customer Ledger) Details Area -->
+                <div id="creditDetailsArea" class="hidden space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div class="flex items-center justify-between text-xs font-bold pb-2 border-b border-slate-200">
+                        <span class="text-slate-700 uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-address-book text-orange-600"></i> Customer Ledger Account
+                        </span>
+                        <span id="creditCustomerStatusBadge" class="text-xs font-black text-rose-600">Due: ₹0.00</span>
+                    </div>
+
+                    <!-- If customer is selected -->
+                    <div id="creditSelectedCustomerBox" class="space-y-2">
+                        <div class="p-3 bg-white border border-slate-200 rounded-xl space-y-1.5 text-xs">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500">Customer Name:</span>
+                                <span id="creditCustomerNameDisplay" class="font-bold text-slate-900">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500">Previous Balance:</span>
+                                <span id="creditPreviousBalanceDisplay" class="font-mono font-bold text-slate-800">Clear: ₹0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500">Bill Amount to Add:</span>
+                                <span id="creditBillAmountDisplay" class="font-mono font-bold text-rose-600">+₹0.00</span>
+                            </div>
+                            <div class="pt-1.5 border-t border-slate-100 flex justify-between items-center font-bold">
+                                <span class="text-slate-800">New Projected Balance:</span>
+                                <span id="creditNewBalanceDisplay" class="font-mono text-sm font-black text-rose-700">Due: ₹0.00</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Credit Reference / Note (Optional)</label>
+                            <input type="text" id="creditRefInput" placeholder="Optional PO / approval reference note" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500 bg-white">
+                        </div>
+                    </div>
+
+                    <!-- If NO customer is selected -->
+                    <div id="creditNoCustomerBox" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-xl text-center space-y-2">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-2xl"></i>
+                        <p class="text-xs font-bold text-amber-900">Customer Required for Credit Billing</p>
+                        <p class="text-[11px] text-amber-700">To maintain credit in customer ledger, please select an existing customer or register a new one.</p>
+                        <div class="flex items-center justify-center gap-2 pt-1">
+                            <button type="button" onclick="closePaymentModal(); focusCustomerSearch();" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition">
+                                <i class="fa-solid fa-magnifying-glass mr-1"></i> Choose Customer
+                            </button>
+                            <button type="button" onclick="openPosQuickCustomerModal();" class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition">
+                                <i class="fa-solid fa-user-plus mr-1"></i> + New Customer
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Multimode (Split Pay) Area -->
                 <div id="multimodeDetailsArea" class="hidden space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
                     <div class="flex items-center justify-between text-xs font-bold pb-2 border-b border-slate-200">
-                        <span class="text-slate-700 uppercase">Split Tender (Cash + UPI)</span>
+                        <span class="text-slate-700 uppercase">Split Tender (Cash + UPI + Credit)</span>
                         <span id="multiDueBadge" class="text-orange-600 font-mono">Due: ₹0.00</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cash Portion (₹) *</label>
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Cash Portion (₹)</label>
                             <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 font-bold text-slate-400 text-xs">₹</span>
-                                <input type="number" step="0.01" min="0" id="multiCashInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-6 pr-2.5 py-2 rounded-xl border border-slate-300 font-black text-base text-slate-900 focus:ring-2 focus:ring-orange-500">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-2 font-bold text-slate-400 text-xs">₹</span>
+                                <input type="number" step="0.01" min="0" id="multiCashInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-5 pr-2 py-1.5 rounded-xl border border-slate-300 font-black text-sm text-slate-900 focus:ring-2 focus:ring-orange-500">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">UPI Portion (₹) *</label>
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">UPI Portion (₹)</label>
                             <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 font-bold text-slate-400 text-xs">₹</span>
-                                <input type="number" step="0.01" min="0" id="multiUpiInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-6 pr-2.5 py-2 rounded-xl border border-slate-300 font-black text-base text-slate-900 focus:ring-2 focus:ring-orange-500">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-2 font-bold text-slate-400 text-xs">₹</span>
+                                <input type="number" step="0.01" min="0" id="multiUpiInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-5 pr-2 py-1.5 rounded-xl border border-slate-300 font-black text-sm text-slate-900 focus:ring-2 focus:ring-orange-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Credit / Due (₹)</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-2 font-bold text-slate-400 text-xs">₹</span>
+                                <input type="number" step="0.01" min="0" id="multiCreditInput" oninput="calculateMultiModeSplit()" placeholder="0.00" class="w-full pl-5 pr-2 py-1.5 rounded-xl border border-slate-300 font-black text-sm text-rose-700 focus:ring-2 focus:ring-orange-500">
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between gap-2 pt-0.5">
-                        <button type="button" onclick="autoFillMultiUpi()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
-                            <i class="fa-solid fa-arrow-right text-indigo-500 mr-1"></i> Balance to UPI
+                    <div class="flex items-center justify-between gap-1.5 pt-0.5">
+                        <button type="button" onclick="autoFillMultiCash()" class="flex-1 py-1 px-1.5 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[10px] font-bold text-slate-700 transition text-center shadow-xs">
+                            Bal to Cash
                         </button>
-                        <button type="button" onclick="autoFillMultiCash()" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[11px] font-bold text-slate-700 transition text-center shadow-xs">
-                            <i class="fa-solid fa-arrow-left text-emerald-500 mr-1"></i> Balance to Cash
+                        <button type="button" onclick="autoFillMultiUpi()" class="flex-1 py-1 px-1.5 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[10px] font-bold text-slate-700 transition text-center shadow-xs">
+                            Bal to UPI
+                        </button>
+                        <button type="button" onclick="autoFillMultiCredit()" class="flex-1 py-1 px-1.5 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-[10px] font-bold text-rose-700 transition text-center shadow-xs">
+                            Bal to Credit
                         </button>
                     </div>
 
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">UPI Transaction / UTR Ref</label>
-                        <input type="text" id="multiUpiRefInput" placeholder="Optional UPI transaction reference" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">UPI Reference / Note</label>
+                        <input type="text" id="multiUpiRefInput" placeholder="Optional transaction note / reference" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
                     </div>
 
-                    <div id="multiStatusBox" class="p-2.5 rounded-xl text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200">
+                    <div id="multiStatusBox" class="p-2 rounded-xl text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200">
                         <span>Total Entered: <span id="multiEnteredSum">₹0.00</span></span>
                         <span id="multiBalanceStatus">Balance: ₹0.00</span>
                     </div>
@@ -626,6 +743,88 @@
                     <i class="fa-solid fa-check-double"></i>
                     <span>Complete & Print Bill</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: POS Quick Add Customer -->
+    <div id="posQuickCustomerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-orange-500"></i> Quick Add Customer
+                </h3>
+                <button type="button" onclick="closePosQuickCustomerModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="posQuickCustomerForm" onsubmit="submitPosQuickCustomer(event)" class="p-5 space-y-3.5 overflow-y-auto flex-1 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Customer Name *</label>
+                    <input type="text" id="quickCustName" required placeholder="Customer / Business Name" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
+                        <input type="text" id="quickCustPhone" placeholder="Mobile / Phone" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Credit Limit (₹)</label>
+                        <input type="number" step="0.01" min="0" id="quickCustLimit" value="0.00" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Address (Optional)</label>
+                    <input type="text" id="quickCustAddress" placeholder="Customer address / locality" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-orange-500">
+                </div>
+                <!-- Opening Balance -->
+                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <span class="block font-bold text-slate-700 uppercase text-[10px]">Opening Balance (Optional)</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" step="0.01" min="0" id="quickCustOpenBal" value="0.00" placeholder="0.00" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+                        <select id="quickCustOpenBalType" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+                            <option value="due">Customer Owes (Due)</option>
+                            <option value="advance">Customer Paid (Advance)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closePosQuickCustomerModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition">Cancel</button>
+                    <button type="submit" id="btnSaveQuickCust" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition shadow-sm">Save & Select</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: POS Quick Customer Ledger Preview -->
+    <div id="customerLedgerPreviewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                <div>
+                    <h3 class="font-bold text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark text-orange-400"></i> <span id="previewLedgerCustName">Customer Ledger</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400" id="previewLedgerCustPhone">-</p>
+                </div>
+                <button type="button" onclick="closeCustomerLedgerPreview()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-4 space-y-3 overflow-y-auto flex-1 text-xs">
+                <!-- Balance Box -->
+                <div class="p-3 rounded-xl flex items-center justify-between bg-slate-100">
+                    <span class="font-bold uppercase text-[10px] text-slate-600">Current Outstanding Balance</span>
+                    <span id="previewLedgerCurrentBalance" class="text-base font-black font-mono">₹0.00</span>
+                </div>
+                <!-- Mini Statement Info -->
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-700 uppercase text-[10px]">Recent Ledger Entries</span>
+                    <a id="previewLedgerFullLink" href="#" target="_blank" class="text-[11px] font-bold text-indigo-600 hover:underline">
+                        Open Full Statement <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                    </a>
+                </div>
+                <div id="previewLedgerEntriesContainer" class="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                    <div class="p-4 text-center text-slate-400">Loading ledger...</div>
+                </div>
+            </div>
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button type="button" onclick="closeCustomerLedgerPreview()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition">Close</button>
             </div>
         </div>
     </div>
@@ -710,6 +909,25 @@
         </div>
     </div>
 
+    @php
+        $initialCustomerData = null;
+        if (! empty($activeBill?->customer)) {
+            $cust = $activeBill->customer;
+            $custBal = (float) $cust->balance;
+            $initialCustomerData = [
+                'id' => $cust->id,
+                'name' => $cust->name,
+                'phone' => $cust->phone ?: '',
+                'email' => $cust->email ?: '',
+                'balance' => $custBal,
+                'credit_limit' => (float) $cust->credit_limit,
+                'is_due' => $custBal > 0.001,
+                'is_advance' => $custBal < -0.001,
+                'formatted_balance' => $cust->formatted_balance,
+            ];
+        }
+    @endphp
+
     <!-- Script Application Logic -->
     <script>
         const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -733,6 +951,7 @@
         let vegFilterOnly = false;
         let currentActiveItemCartIndex = null;
         let selectedPaymentMethod = 'cash';
+        let selectedCustomerState = @json($activeCustomerPayload ?? $initialCustomerData);
         const LOGGED_USER_IS_ADMIN = {{ $isAdmin ? 'true' : 'false' }};
         const LOGGED_STAFF_ID = {{ (!$isAdmin && $currentUser) ? $currentUser->id : 'null' }};
         const LOGGED_STAFF_NAME = "{{ (!$isAdmin && $currentUser) ? addslashes($currentUser->name) : '' }}";
@@ -842,6 +1061,313 @@
             } else {
                 display.innerText = 'Takeaway / Walk-in Counter';
             }
+        }
+
+        // 1B. CUSTOMER & LEDGER MANAGEMENT LOGIC
+        let customerSearchDebounce = null;
+
+        function setSelectedCustomer(customer) {
+            if (!customer) {
+                clearSelectedCustomer();
+                return;
+            }
+
+            selectedCustomerState = customer;
+            const hiddenId = document.getElementById('selectedCustomerId');
+            if (hiddenId) hiddenId.value = customer.id;
+
+            const nameInput = document.getElementById('custName');
+            if (nameInput) nameInput.value = customer.name || '';
+            const phoneInput = document.getElementById('custPhone');
+            if (phoneInput) phoneInput.value = customer.phone || '';
+
+            // Update Selected Customer Pill
+            const pill = document.getElementById('selectedCustomerPill');
+            const searchContainer = document.getElementById('customerSearchContainer');
+            const pillName = document.getElementById('pillCustomerName');
+            const pillPhone = document.getElementById('pillCustomerPhone');
+            const pillBalBadge = document.getElementById('pillCustomerBalanceBadge');
+
+            if (pillName) pillName.innerText = customer.name;
+            if (pillPhone) pillPhone.innerText = customer.phone || 'No phone';
+
+            const bal = parseFloat(customer.balance) || 0;
+            if (pillBalBadge) {
+                if (customer.formatted_balance) {
+                    pillBalBadge.innerText = customer.formatted_balance;
+                } else if (bal > 0.001) {
+                    pillBalBadge.innerText = `Due: ${CURRENCY}${bal.toFixed(2)}`;
+                } else if (bal < -0.001) {
+                    pillBalBadge.innerText = `Adv: ${CURRENCY}${Math.abs(bal).toFixed(2)}`;
+                } else {
+                    pillBalBadge.innerText = 'Clear: ₹0.00';
+                }
+                pillBalBadge.className = `font-black ${bal > 0.001 ? 'text-rose-700' : (bal < -0.001 ? 'text-sky-700' : 'text-emerald-700')}`;
+            }
+
+            if (searchContainer) searchContainer.classList.add('hidden');
+            if (pill) pill.classList.remove('hidden');
+
+            const searchResults = document.getElementById('customerSearchResults');
+            if (searchResults) searchResults.classList.add('hidden');
+
+            if (selectedPaymentMethod === 'credit' || selectedPaymentMethod === 'multimode') {
+                updateCreditPaymentPreview();
+            }
+        }
+
+        function clearSelectedCustomer() {
+            selectedCustomerState = null;
+            const hiddenId = document.getElementById('selectedCustomerId');
+            if (hiddenId) hiddenId.value = '';
+
+            const searchInput = document.getElementById('custSearchInput');
+            if (searchInput) searchInput.value = '';
+
+            const pill = document.getElementById('selectedCustomerPill');
+            const searchContainer = document.getElementById('customerSearchContainer');
+
+            if (pill) pill.classList.add('hidden');
+            if (searchContainer) searchContainer.classList.remove('hidden');
+
+            const searchResults = document.getElementById('customerSearchResults');
+            if (searchResults) {
+                searchResults.innerHTML = '';
+                searchResults.classList.add('hidden');
+            }
+
+            if (selectedPaymentMethod === 'credit' || selectedPaymentMethod === 'multimode') {
+                updateCreditPaymentPreview();
+            }
+        }
+
+        function focusCustomerSearch() {
+            clearSelectedCustomer();
+            const input = document.getElementById('custSearchInput');
+            if (input) {
+                input.focus();
+            }
+        }
+
+        async function onCustomerSearchInput(val) {
+            clearTimeout(customerSearchDebounce);
+            const dropdown = document.getElementById('customerSearchResults');
+            if (!dropdown) return;
+
+            const q = (val || '').trim();
+            if (q.length === 0) {
+                dropdown.innerHTML = '';
+                dropdown.classList.add('hidden');
+                return;
+            }
+
+            customerSearchDebounce = setTimeout(async () => {
+                try {
+                    const res = await fetch(`{{ route('pos.customers.search') }}?query=${encodeURIComponent(q)}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await res.json();
+                    if (!data.customers || data.customers.length === 0) {
+                        dropdown.innerHTML = `
+                            <div class="p-3 text-center text-xs text-slate-500">
+                                <div>No customer found for "<span class="font-bold text-slate-700">${q}</span>"</div>
+                                <button type="button" onclick="openPosQuickCustomerModal('${q.replace(/'/g, "\\'")}')" class="mt-2 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold rounded-lg transition inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-user-plus text-[10px]"></i> Register "${q}"
+                                </button>
+                            </div>
+                        `;
+                        dropdown.classList.remove('hidden');
+                        return;
+                    }
+
+                    let html = '';
+                    data.customers.forEach(c => {
+                        const bal = parseFloat(c.balance) || 0;
+                        const balColor = bal > 0.001 ? 'text-rose-600' : (bal < -0.001 ? 'text-sky-600' : 'text-emerald-600');
+                        const balLabel = c.formatted_balance || (bal > 0.001 ? `Due: ${CURRENCY}${bal.toFixed(2)}` : (bal < -0.001 ? `Adv: ${CURRENCY}${Math.abs(bal).toFixed(2)}` : 'Clear: ₹0.00'));
+                        const escapedJson = JSON.stringify(c).replace(/"/g, '&quot;');
+
+                        html += `
+                            <div onclick="selectCustomerFromSearch(${escapedJson})" class="p-2.5 hover:bg-orange-50 cursor-pointer flex items-center justify-between transition text-xs">
+                                <div>
+                                    <div class="font-bold text-slate-900">${c.name}</div>
+                                    <div class="text-[10px] text-slate-500 font-mono">${c.phone || 'No phone'}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-bold font-mono text-xs ${balColor}">${balLabel}</div>
+                                    ${c.credit_limit > 0 ? `<div class="text-[9px] text-slate-400">Limit: ${CURRENCY}${parseFloat(c.credit_limit).toFixed(0)}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    dropdown.innerHTML = html;
+                    dropdown.classList.remove('hidden');
+                } catch (err) {
+                    console.error('Customer search error:', err);
+                }
+            }, 250);
+        }
+
+        function selectCustomerFromSearch(customer) {
+            setSelectedCustomer(customer);
+        }
+
+        // Close customer search dropdown on outside click
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('customerSearchResults');
+            const searchInput = document.getElementById('custSearchInput');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                if (!dropdown.contains(e.target) && e.target !== searchInput) {
+                    dropdown.classList.add('hidden');
+                }
+            }
+        });
+
+        function openPosQuickCustomerModal(presetName = '') {
+            const modal = document.getElementById('posQuickCustomerModal');
+            if (!modal) return;
+            const nameInput = document.getElementById('quickCustName');
+            const searchInput = document.getElementById('custSearchInput');
+            const formCustName = document.getElementById('custName');
+
+            if (nameInput) {
+                nameInput.value = presetName || (searchInput ? searchInput.value : '') || (formCustName ? formCustName.value : '');
+            }
+            const phoneInput = document.getElementById('quickCustPhone');
+            const formCustPhone = document.getElementById('custPhone');
+            if (phoneInput && !phoneInput.value && formCustPhone) {
+                phoneInput.value = formCustPhone.value || '';
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => nameInput?.focus(), 50);
+        }
+
+        function closePosQuickCustomerModal() {
+            const modal = document.getElementById('posQuickCustomerModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitPosQuickCustomer(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveQuickCust');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            const payload = {
+                name: document.getElementById('quickCustName')?.value?.trim(),
+                phone: document.getElementById('quickCustPhone')?.value?.trim() || null,
+                address: document.getElementById('quickCustAddress')?.value?.trim() || null,
+                credit_limit: parseFloat(document.getElementById('quickCustLimit')?.value) || 0,
+                opening_balance: parseFloat(document.getElementById('quickCustOpenBal')?.value) || 0,
+                opening_balance_type: document.getElementById('quickCustOpenBalType')?.value || 'due'
+            };
+
+            try {
+                const res = await fetch(`{{ route('pos.customers.quick-store') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success && data.customer) {
+                    Toast.fire({ icon: 'success', title: data.message || 'Customer registered & selected.' });
+                    setSelectedCustomer(data.customer);
+                    closePosQuickCustomerModal();
+                    document.getElementById('posQuickCustomerForm')?.reset();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Error',
+                        text: data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to register customer.')
+                    });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Network Error', text: 'Failed to create customer.' });
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save & Select';
+            }
+        }
+
+        async function previewCustomerLedger() {
+            if (!selectedCustomerState || !selectedCustomerState.id) {
+                Toast.fire({ icon: 'warning', title: 'No customer selected.' });
+                return;
+            }
+
+            const modal = document.getElementById('customerLedgerPreviewModal');
+            const nameEl = document.getElementById('previewLedgerCustName');
+            const phoneEl = document.getElementById('previewLedgerCustPhone');
+            const balEl = document.getElementById('previewLedgerCurrentBalance');
+            const linkEl = document.getElementById('previewLedgerFullLink');
+            const container = document.getElementById('previewLedgerEntriesContainer');
+
+            if (nameEl) nameEl.innerText = `${selectedCustomerState.name}'s Ledger`;
+            if (phoneEl) phoneEl.innerText = selectedCustomerState.phone || 'No phone recorded';
+            if (linkEl) linkEl.href = `{{ url('customers') }}/${selectedCustomerState.id}/ledger`;
+
+            const curBal = parseFloat(selectedCustomerState.balance) || 0;
+            if (balEl) {
+                balEl.innerText = selectedCustomerState.formatted_balance || (curBal > 0.001 ? `Due: ${CURRENCY}${curBal.toFixed(2)}` : (curBal < -0.001 ? `Adv: ${CURRENCY}${Math.abs(curBal).toFixed(2)}` : 'Clear: ₹0.00'));
+                balEl.className = `text-base font-black font-mono ${curBal > 0.001 ? 'text-rose-600' : (curBal < -0.001 ? 'text-sky-600' : 'text-emerald-600')}`;
+            }
+
+            container.innerHTML = '<div class="p-4 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading ledger transactions...</div>';
+            modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`{{ url('pos/customers') }}/${selectedCustomerState.id}/ledger-json`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.success && data.entries) {
+                    if (data.entries.length === 0) {
+                        container.innerHTML = '<div class="p-4 text-center text-xs text-slate-500 font-semibold">No ledger entries recorded yet.</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    data.entries.forEach(e => {
+                        const isDebit = e.type === 'debit';
+                        const typeBadge = isDebit
+                            ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-rose-100 text-rose-700">Debit (+)</span>'
+                            : '<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-100 text-emerald-700">Credit (-)</span>';
+
+                        html += `
+                            <div class="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50 transition">
+                                <div class="space-y-0.5 pr-2">
+                                    <div class="flex items-center gap-1.5">
+                                        ${typeBadge}
+                                        <span class="font-bold text-slate-800">${e.description || 'Transaction'}</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 font-mono">${e.entry_date} ${e.payment_mode ? `• ${e.payment_mode}` : ''}</div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <div class="font-mono font-black ${isDebit ? 'text-rose-600' : 'text-emerald-600'}">
+                                        ${isDebit ? '+' : '-'}${CURRENCY}${parseFloat(e.amount).toFixed(2)}
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 font-mono">Bal: ${CURRENCY}${parseFloat(e.balance_after).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="p-4 text-center text-xs text-rose-500">Failed to load ledger transactions.</div>';
+                }
+            } catch (err) {
+                container.innerHTML = '<div class="p-4 text-center text-xs text-rose-500">Network error fetching ledger.</div>';
+            }
+        }
+
+        function closeCustomerLedgerPreview() {
+            const modal = document.getElementById('customerLedgerPreviewModal');
+            if (modal) modal.classList.add('hidden');
         }
 
         // 2. FOODS SEARCH & RENDERING
@@ -1722,6 +2248,7 @@
             currentTableId = null;
             updateOrderTargetDisplay();
 
+            clearSelectedCustomer();
             const custName = document.getElementById('custName');
             if (custName) custName.value = '';
             const custPhone = document.getElementById('custPhone');
@@ -1963,6 +2490,7 @@
                 waiter_id: currentWaiterId,
                 waiter_name: currentWaiterName,
                 status: status,
+                customer_id: document.getElementById('selectedCustomerId')?.value || null,
                 customer_name: document.getElementById('custName').value,
                 customer_phone: document.getElementById('custPhone').value,
                 discount_type: document.getElementById('discountType').value,
@@ -2124,8 +2652,10 @@
             // Multimode initialization
             const multiCash = document.getElementById('multiCashInput');
             const multiUpi = document.getElementById('multiUpiInput');
+            const multiCredit = document.getElementById('multiCreditInput');
             if (multiCash) multiCash.value = grandTotal.toFixed(2);
             if (multiUpi) multiUpi.value = '0';
+            if (multiCredit) multiCredit.value = '0';
             const multiRef = document.getElementById('multiUpiRefInput');
             if (multiRef) multiRef.value = '';
             calculateMultiModeSplit();
@@ -2143,32 +2673,82 @@
         function selectPayMethod(method) {
             selectedPaymentMethod = method;
             document.querySelectorAll('.pay-method-btn').forEach(btn => {
-                btn.className = 'pay-method-btn p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition';
+                btn.className = 'pay-method-btn p-2 sm:p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation';
             });
             const active = document.getElementById(`payTab_${method}`);
             if (active) {
-                active.className = 'pay-method-btn p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition';
+                active.className = 'pay-method-btn p-2 sm:p-2.5 rounded-xl border border-orange-600 bg-orange-50 text-orange-800 font-bold text-xs flex flex-col items-center gap-1 transition active:scale-95 touch-action-manipulation';
             }
 
             const cashArea = document.getElementById('cashDetailsArea');
             const refArea = document.getElementById('referenceDetailsArea');
             const multiArea = document.getElementById('multimodeDetailsArea');
+            const creditArea = document.getElementById('creditDetailsArea');
 
             if (method === 'cash') {
-                cashArea.classList.remove('hidden');
-                refArea.classList.add('hidden');
-                if (multiArea) multiArea.classList.add('hidden');
+                cashArea?.classList.remove('hidden');
+                refArea?.classList.add('hidden');
+                multiArea?.classList.add('hidden');
+                creditArea?.classList.add('hidden');
             } else if (method === 'multimode') {
-                cashArea.classList.add('hidden');
-                refArea.classList.add('hidden');
-                if (multiArea) {
-                    multiArea.classList.remove('hidden');
-                    calculateMultiModeSplit();
-                }
+                cashArea?.classList.add('hidden');
+                refArea?.classList.add('hidden');
+                multiArea?.classList.remove('hidden');
+                creditArea?.classList.add('hidden');
+                calculateMultiModeSplit();
+            } else if (method === 'credit') {
+                cashArea?.classList.add('hidden');
+                refArea?.classList.add('hidden');
+                multiArea?.classList.add('hidden');
+                creditArea?.classList.remove('hidden');
+                updateCreditPaymentPreview();
             } else {
-                cashArea.classList.add('hidden');
-                refArea.classList.remove('hidden');
-                if (multiArea) multiArea.classList.add('hidden');
+                cashArea?.classList.add('hidden');
+                refArea?.classList.remove('hidden');
+                multiArea?.classList.add('hidden');
+                creditArea?.classList.add('hidden');
+            }
+        }
+
+        function updateCreditPaymentPreview() {
+            const hasCust = selectedCustomerState && selectedCustomerState.id;
+            const noCustBox = document.getElementById('creditNoCustomerBox');
+            const selCustBox = document.getElementById('creditSelectedCustomerBox');
+            const statusBadge = document.getElementById('creditCustomerStatusBadge');
+
+            if (!hasCust) {
+                noCustBox?.classList.remove('hidden');
+                selCustBox?.classList.add('hidden');
+                if (statusBadge) statusBadge.innerText = 'No Customer Selected';
+                return;
+            }
+
+            noCustBox?.classList.add('hidden');
+            selCustBox?.classList.remove('hidden');
+
+            const currentBal = parseFloat(selectedCustomerState.balance) || 0;
+            const grandTotal = parseFloat(calculationState?.grand_total) || 0;
+            const projectedBal = +(currentBal + grandTotal).toFixed(2);
+
+            const nameEl = document.getElementById('creditCustomerNameDisplay');
+            const prevBalEl = document.getElementById('creditPreviousBalanceDisplay');
+            const billAmtEl = document.getElementById('creditBillAmountDisplay');
+            const newBalEl = document.getElementById('creditNewBalanceDisplay');
+
+            if (nameEl) nameEl.innerText = selectedCustomerState.name;
+            if (prevBalEl) {
+                prevBalEl.innerText = selectedCustomerState.formatted_balance || (currentBal > 0.001 ? `Due: ${CURRENCY}${currentBal.toFixed(2)}` : (currentBal < -0.001 ? `Adv: ${CURRENCY}${Math.abs(currentBal).toFixed(2)}` : 'Clear: ₹0.00'));
+                prevBalEl.className = `font-mono font-bold ${currentBal > 0.001 ? 'text-rose-600' : (currentBal < -0.001 ? 'text-sky-600' : 'text-slate-800')}`;
+            }
+            if (billAmtEl) {
+                billAmtEl.innerText = `+${CURRENCY}${grandTotal.toFixed(2)}`;
+            }
+            if (newBalEl) {
+                newBalEl.innerText = projectedBal > 0.001 ? `Due: ${CURRENCY}${projectedBal.toFixed(2)}` : (projectedBal < -0.001 ? `Adv: ${CURRENCY}${Math.abs(projectedBal).toFixed(2)}` : 'Clear: ₹0.00');
+                newBalEl.className = `font-mono text-sm font-black ${projectedBal > 0.001 ? 'text-rose-700' : (projectedBal < -0.001 ? 'text-sky-700' : 'text-emerald-700')}`;
+            }
+            if (statusBadge) {
+                statusBadge.innerText = `New Due: ${CURRENCY}${projectedBal.toFixed(2)}`;
             }
         }
 
@@ -2177,7 +2757,8 @@
             const grandTotal = parseFloat(calculationState.grand_total) || 0;
             const cashVal = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
             const upiVal = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
-            const totalEntered = +(cashVal + upiVal).toFixed(2);
+            const creditVal = parseFloat(document.getElementById('multiCreditInput')?.value) || 0;
+            const totalEntered = +(cashVal + upiVal + creditVal).toFixed(2);
             const diff = +(grandTotal - totalEntered).toFixed(2);
 
             const enteredSpan = document.getElementById('multiEnteredSum');
@@ -2190,33 +2771,46 @@
 
             if (Math.abs(diff) < 0.01) {
                 if (balanceSpan) balanceSpan.innerText = 'Matched (Exact)';
-                if (statusBox) statusBox.className = 'p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-emerald-50 text-emerald-800 border border-emerald-200';
+                if (statusBox) statusBox.className = 'p-2 rounded-xl text-xs font-bold flex items-center justify-between bg-emerald-50 text-emerald-800 border border-emerald-200';
             } else if (diff > 0) {
                 if (balanceSpan) balanceSpan.innerText = `Short: ${CURRENCY}${diff.toFixed(2)}`;
-                if (statusBox) statusBox.className = 'p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200';
+                if (statusBox) statusBox.className = 'p-2 rounded-xl text-xs font-bold flex items-center justify-between bg-amber-50 text-amber-800 border border-amber-200';
             } else {
                 if (balanceSpan) balanceSpan.innerText = `Excess: ${CURRENCY}${Math.abs(diff).toFixed(2)}`;
-                if (statusBox) statusBox.className = 'p-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-rose-50 text-rose-800 border border-rose-200';
+                if (statusBox) statusBox.className = 'p-2 rounded-xl text-xs font-bold flex items-center justify-between bg-rose-50 text-rose-800 border border-rose-200';
             }
-        }
-
-        function autoFillMultiUpi() {
-            if (!calculationState) return;
-            const grandTotal = parseFloat(calculationState.grand_total) || 0;
-            const cashVal = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
-            const rem = Math.max(0, +(grandTotal - cashVal).toFixed(2));
-            const upiInput = document.getElementById('multiUpiInput');
-            if (upiInput) upiInput.value = rem > 0 ? rem.toFixed(2) : '0';
-            calculateMultiModeSplit();
         }
 
         function autoFillMultiCash() {
             if (!calculationState) return;
             const grandTotal = parseFloat(calculationState.grand_total) || 0;
             const upiVal = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
-            const rem = Math.max(0, +(grandTotal - upiVal).toFixed(2));
+            const creditVal = parseFloat(document.getElementById('multiCreditInput')?.value) || 0;
+            const rem = Math.max(0, +(grandTotal - upiVal - creditVal).toFixed(2));
             const cashInput = document.getElementById('multiCashInput');
             if (cashInput) cashInput.value = rem > 0 ? rem.toFixed(2) : '0';
+            calculateMultiModeSplit();
+        }
+
+        function autoFillMultiUpi() {
+            if (!calculationState) return;
+            const grandTotal = parseFloat(calculationState.grand_total) || 0;
+            const cashVal = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
+            const creditVal = parseFloat(document.getElementById('multiCreditInput')?.value) || 0;
+            const rem = Math.max(0, +(grandTotal - cashVal - creditVal).toFixed(2));
+            const upiInput = document.getElementById('multiUpiInput');
+            if (upiInput) upiInput.value = rem > 0 ? rem.toFixed(2) : '0';
+            calculateMultiModeSplit();
+        }
+
+        function autoFillMultiCredit() {
+            if (!calculationState) return;
+            const grandTotal = parseFloat(calculationState.grand_total) || 0;
+            const cashVal = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
+            const upiVal = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
+            const rem = Math.max(0, +(grandTotal - cashVal - upiVal).toFixed(2));
+            const creditInput = document.getElementById('multiCreditInput');
+            if (creditInput) creditInput.value = rem > 0 ? rem.toFixed(2) : '0';
             calculateMultiModeSplit();
         }
 
@@ -2245,20 +2839,45 @@
             btn.disabled = true;
             btn.innerText = 'Processing...';
 
+            const customerId = document.getElementById('selectedCustomerId')?.value || null;
+
+            if (selectedPaymentMethod === 'credit' && !customerId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Customer Required',
+                    text: 'Credit (Due) billing requires a registered customer so the amount can be tracked in their ledger. Please select or register a customer.'
+                });
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-check-double"></i><span>Complete & Print Bill</span>';
+                return;
+            }
+
             let payments = [];
             if (selectedPaymentMethod === 'multimode') {
                 const cashAmt = parseFloat(document.getElementById('multiCashInput')?.value) || 0;
                 const upiAmt = parseFloat(document.getElementById('multiUpiInput')?.value) || 0;
+                const creditAmt = parseFloat(document.getElementById('multiCreditInput')?.value) || 0;
                 const multiRef = document.getElementById('multiUpiRefInput')?.value?.trim() || null;
 
-                if (cashAmt <= 0 && upiAmt <= 0) {
-                    Toast.fire({ icon: 'warning', title: 'Please enter Cash and/or UPI amounts for Multimode payment.' });
+                if (cashAmt <= 0 && upiAmt <= 0 && creditAmt <= 0) {
+                    Toast.fire({ icon: 'warning', title: 'Please enter Cash, UPI, and/or Credit amounts for Split payment.' });
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa-solid fa-check-double"></i><span>Complete & Print Bill</span>';
                     return;
                 }
 
-                const totalPaid = +(cashAmt + upiAmt).toFixed(2);
+                if (creditAmt > 0 && !customerId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Customer Required for Credit Portion',
+                        text: 'A registered customer is required to record the credit portion into their ledger.'
+                    });
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check-double"></i><span>Complete & Print Bill</span>';
+                    return;
+                }
+
+                const totalPaid = +(cashAmt + upiAmt + creditAmt).toFixed(2);
                 const grandTotal = +(calculationState.grand_total).toFixed(2);
                 if (Math.abs(totalPaid - grandTotal) > 0.05) {
                     Swal.fire({
@@ -2285,6 +2904,19 @@
                         reference_number: multiRef
                     });
                 }
+                if (creditAmt > 0) {
+                    payments.push({
+                        payment_method: 'credit',
+                        amount: creditAmt,
+                        reference_number: multiRef
+                    });
+                }
+            } else if (selectedPaymentMethod === 'credit') {
+                payments.push({
+                    payment_method: 'credit',
+                    amount: calculationState.grand_total,
+                    reference_number: document.getElementById('creditRefInput')?.value?.trim() || null
+                });
             } else {
                 payments.push({
                     payment_method: selectedPaymentMethod,
@@ -2295,6 +2927,7 @@
 
             const payload = {
                 bill_id: activeBillId,
+                customer_id: customerId,
                 order_type: orderType,
                 table_id: currentTableId,
                 waiter_id: currentWaiterId,
@@ -2532,8 +3165,21 @@
                 if (waiterSel) waiterSel.value = LOGGED_STAFF_ID;
             }
 
-            document.getElementById('custName').value = bill.customer_name || '';
-            document.getElementById('custPhone').value = bill.customer_phone || '';
+            if (bill.customer) {
+                setSelectedCustomer(bill.customer);
+            } else if (bill.customer_id) {
+                setSelectedCustomer({
+                    id: bill.customer_id,
+                    name: bill.customer_name || 'Customer',
+                    phone: bill.customer_phone || '',
+                    balance: 0,
+                    formatted_balance: 'Clear: ₹0.00'
+                });
+            } else {
+                clearSelectedCustomer();
+                document.getElementById('custName').value = bill.customer_name || '';
+                document.getElementById('custPhone').value = bill.customer_phone || '';
+            }
             document.getElementById('discountType').value = bill.discount_type || 'fixed';
             document.getElementById('discountValue').value = bill.discount_value || 0;
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DayClosingController;
 use App\Http\Controllers\ExpenseController;
@@ -20,7 +21,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    if (!auth()->check()) {
+    if (! auth()->check()) {
         return redirect()->route('login');
     }
 
@@ -66,12 +67,30 @@ Route::middleware('auth')->group(function () {
         Route::post('/clear-cart', [PosController::class, 'clearCartOrder'])->middleware('permission:pos.billing')->name('clear');
         Route::post('/kot', [PosController::class, 'generateKot'])->middleware('permission:pos.billing')->name('kot');
         Route::get('/kot/print/{bill}', [PosController::class, 'printKot'])->middleware('permission:pos.billing')->name('kot.print');
+        Route::get('/customers/search', [CustomerController::class, 'search'])->middleware('permission:pos.billing')->name('customers.search');
+        Route::post('/customers/quick-store', [CustomerController::class, 'quickStore'])->middleware('permission:pos.billing')->name('customers.quick-store');
+        Route::get('/customers/{customer}/ledger-json', [CustomerController::class, 'ledgerJson'])->middleware('permission:pos.billing')->name('customers.ledger.json');
     });
 
     // POS Print
     Route::get('/print/{bill}', [PrintController::class, 'print'])
         ->middleware('permission:pos.billing')
         ->name('print.bill');
+
+    // Customer & Ledger Maintenance
+    Route::prefix('customers')->name('customers.')->middleware('permission:customer.view')->group(function () {
+        Route::get('/', [CustomerController::class, 'index'])->name('index');
+        Route::post('/', [CustomerController::class, 'store'])->middleware('permission:customer.manage')->name('store');
+        Route::put('/{customer}', [CustomerController::class, 'update'])->middleware('permission:customer.manage')->name('update');
+        Route::delete('/{customer}', [CustomerController::class, 'destroy'])->middleware('permission:customer.manage')->name('destroy');
+        Route::get('/search', [CustomerController::class, 'search'])->name('search');
+        Route::post('/quick-store', [CustomerController::class, 'quickStore'])->middleware('permission:customer.manage')->name('quick-store');
+        Route::get('/{customer}/ledger', [CustomerController::class, 'ledger'])->name('ledger');
+        Route::get('/{customer}/ledger-json', [CustomerController::class, 'ledgerJson'])->name('ledger-json');
+        Route::post('/{customer}/payment', [CustomerController::class, 'recordLedgerPayment'])->middleware('permission:customer.manage')->name('payment');
+        Route::post('/{customer}/debit', [CustomerController::class, 'recordLedgerDebit'])->middleware('permission:customer.manage')->name('debit');
+        Route::get('/{customer}/print-statement', [CustomerController::class, 'printStatement'])->name('print-statement');
+    });
 
     // 3. Food Category Management
     Route::prefix('categories')->name('categories.')->middleware('permission:food.view')->group(function () {
