@@ -87,8 +87,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/quick-store', [CustomerController::class, 'quickStore'])->middleware('permission:customer.manage')->name('quick-store');
         Route::get('/{customer}/ledger', [CustomerController::class, 'ledger'])->name('ledger');
         Route::get('/{customer}/ledger-json', [CustomerController::class, 'ledgerJson'])->name('ledger-json');
-        Route::post('/{customer}/payment', [CustomerController::class, 'recordLedgerPayment'])->middleware('permission:customer.manage')->name('payment');
-        Route::post('/{customer}/debit', [CustomerController::class, 'recordLedgerDebit'])->middleware('permission:customer.manage')->name('debit');
+        Route::match(['GET', 'POST'], '/{customer}/payment', [CustomerController::class, 'recordLedgerPayment'])->middleware('permission:customer.manage')->name('payment');
+        Route::match(['GET', 'POST'], '/{customer}/debit', [CustomerController::class, 'recordLedgerDebit'])->middleware('permission:customer.manage')->name('debit');
         Route::get('/{customer}/print-statement', [CustomerController::class, 'printStatement'])->name('print-statement');
     });
 

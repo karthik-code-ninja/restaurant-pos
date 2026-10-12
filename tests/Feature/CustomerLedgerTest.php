@@ -311,6 +311,47 @@ class CustomerLedgerTest extends TestCase
         ]);
     }
 
+    public function test_get_on_customer_payment_redirects_to_ledger_without_405(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Redirect Test Customer',
+            'phone' => '9665544332',
+            'balance' => 500.00,
+            'status' => true,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->get(route('customers.payment', $customer));
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('customers.ledger', $customer));
+    }
+
+    public function test_ajax_payment_recording_returns_json_response(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Ajax Customer',
+            'phone' => '9445566778',
+            'balance' => 2000.00,
+            'status' => true,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('customers.payment', $customer), [
+                'amount' => 500.00,
+                'payment_mode' => 'upi',
+                'reference_number' => 'UPI-REF-999',
+                'description' => 'GPay settlement',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $this->assertEquals(1500.00, (float) $response->json('new_balance'));
+
+        $customer->refresh();
+        $this->assertEquals(1500.00, (float) $customer->balance);
+    }
+
     public function test_customer_ledger_json_endpoint_returns_recent_entries(): void
     {
         $customer = Customer::create([

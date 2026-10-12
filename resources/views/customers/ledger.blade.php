@@ -278,7 +278,7 @@
             <button type="button" onclick="closeReceivePaymentModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <form action="{{ route('customers.payment', $customer) }}" method="POST" class="p-6 space-y-4 text-xs">
+        <form id="ledgerReceivePaymentForm" action="{{ route('customers.payment', $customer) }}" method="POST" class="p-6 space-y-4 text-xs">
             @csrf
             <!-- Current Due Banner -->
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
@@ -339,7 +339,7 @@
             <button type="button" onclick="closeAddDebitModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <form action="{{ route('customers.debit', $customer) }}" method="POST" class="p-6 space-y-4 text-xs">
+        <form id="ledgerAddDebitForm" action="{{ route('customers.debit', $customer) }}" method="POST" class="p-6 space-y-4 text-xs">
             @csrf
             <div>
                 <label class="block font-bold text-slate-700 uppercase mb-1">Debit Amount (₹) *</label>
@@ -382,6 +382,116 @@
     function closeAddDebitModal() {
         document.getElementById('addDebitModal').classList.add('hidden');
     }
+
+    // AJAX submit for Receive Payment
+    document.getElementById('ledgerReceivePaymentForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...';
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || formData.get('_token'),
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                closeReceivePaymentModal();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Payment Recorded',
+                        text: data.message || 'Payment has been successfully recorded.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Payment Failed',
+                        text: data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to record payment.'),
+                    });
+                } else {
+                    alert(data.message || 'Failed to record payment.');
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        } catch (err) {
+            console.error('Payment submit error:', err);
+            form.submit();
+        }
+    });
+
+    // AJAX submit for Add Debit Charge
+    document.getElementById('ledgerAddDebitForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...';
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || formData.get('_token'),
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                closeAddDebitModal();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Debit Added',
+                        text: data.message || 'Debit entry has been successfully recorded.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Debit Failed',
+                        text: data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to record debit.'),
+                    });
+                } else {
+                    alert(data.message || 'Failed to record debit.');
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        } catch (err) {
+            console.error('Debit submit error:', err);
+            form.submit();
+        }
+    });
 </script>
 @endpush
 @endsection

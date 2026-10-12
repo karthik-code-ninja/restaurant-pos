@@ -385,6 +385,10 @@ class CustomerController extends Controller
      */
     public function recordLedgerPayment(Customer $customer, Request $request)
     {
+        if ($request->isMethod('get')) {
+            return redirect()->route('customers.ledger', $customer);
+        }
+
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
             'payment_mode' => ['required', 'in:cash,upi,card,bank_transfer,cheque,other'],
@@ -404,12 +408,12 @@ class CustomerController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => "Payment of ₹{$ledger->amount} recorded successfully.",
+                'message' => 'Payment of ₹'.number_format($ledger->amount, 2).' recorded successfully.',
                 'new_balance' => (float) $customer->fresh()->balance,
             ]);
         }
 
-        return redirect()->back()->with('success', 'Payment of ₹'.number_format($ledger->amount, 2).' received and credited successfully.');
+        return redirect()->route('customers.ledger', $customer)->with('success', 'Payment of ₹'.number_format($ledger->amount, 2).' received and credited successfully.');
     }
 
     /**
@@ -417,6 +421,10 @@ class CustomerController extends Controller
      */
     public function recordLedgerDebit(Customer $customer, Request $request)
     {
+        if ($request->isMethod('get')) {
+            return redirect()->route('customers.ledger', $customer);
+        }
+
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
             'description' => ['required', 'string', 'max:255'],
@@ -435,12 +443,12 @@ class CustomerController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => "Debit entry of ₹{$ledger->amount} recorded successfully.",
+                'message' => 'Debit entry of ₹'.number_format($ledger->amount, 2).' recorded successfully.',
                 'new_balance' => (float) $customer->fresh()->balance,
             ]);
         }
 
-        return redirect()->back()->with('success', 'Debit adjustment of ₹'.number_format($ledger->amount, 2).' added successfully.');
+        return redirect()->route('customers.ledger', $customer)->with('success', 'Debit adjustment of ₹'.number_format($ledger->amount, 2).' added successfully.');
     }
 
     /**

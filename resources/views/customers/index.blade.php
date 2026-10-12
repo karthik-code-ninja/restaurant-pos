@@ -415,9 +415,11 @@
         document.getElementById('createCustomerModal').classList.add('hidden');
     }
 
+    const baseCustomerUrl = "{{ url('customers') }}";
+
     function openEditCustomerModal(customer) {
         const form = document.getElementById('editCustomerForm');
-        form.action = `/customers/${customer.id}`;
+        form.action = `${baseCustomerUrl}/${customer.id}`;
         document.getElementById('editCustomerName').value = customer.name || '';
         document.getElementById('editCustomerPhone').value = customer.phone || '';
         document.getElementById('editCustomerEmail').value = customer.email || '';
@@ -434,7 +436,7 @@
 
     function openReceivePaymentModal(id, name, balance) {
         const form = document.getElementById('receivePaymentForm');
-        form.action = `/customers/${id}/payment`;
+        form.action = `${baseCustomerUrl}/${id}/payment`;
         document.getElementById('receivePaymentCustomerLabel').innerText = name;
 
         const balDisplay = document.getElementById('receivePaymentBalanceDisplay');
@@ -459,6 +461,60 @@
     function closeReceivePaymentModal() {
         document.getElementById('receivePaymentModal').classList.add('hidden');
     }
+
+    document.getElementById('receivePaymentForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...';
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || formData.get('_token'),
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                closeReceivePaymentModal();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Payment Recorded',
+                        text: data.message || 'Payment has been successfully recorded.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Payment Failed',
+                        text: data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to record payment.'),
+                    });
+                } else {
+                    alert(data.message || 'Failed to record payment.');
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        } catch (err) {
+            console.error('Payment submission error:', err);
+            form.submit();
+        }
+    });
 </script>
 @endpush
 @endsection
