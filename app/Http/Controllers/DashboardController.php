@@ -60,11 +60,11 @@ class DashboardController extends Controller
         $foodSalesSummary = BillItem::whereHas('bill', function ($q) use ($start, $end) {
             $q->where('status', 'completed')->whereBetween('created_at', [$start, $end]);
         })
-        ->select('food_code', 'item_name', DB::raw('SUM(quantity) as total_qty'), DB::raw('SUM(total) as total_amount'))
-        ->groupBy('food_code', 'item_name')
-        ->orderByDesc('total_qty')
-        ->limit(8)
-        ->get();
+            ->select('food_code', 'item_name', DB::raw('SUM(quantity) as total_qty'), DB::raw('SUM(total) as total_amount'))
+            ->groupBy('food_code', 'item_name')
+            ->orderByDesc('total_qty')
+            ->limit(8)
+            ->get();
 
         // 3. Daily Sales for last 7 days chart
         $last7Days = [];

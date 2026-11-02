@@ -12,16 +12,15 @@ class BillCalculationService
     /**
      * Calculate bill totals from raw cart items array.
      *
-     * @param array $cartItems Array of items:
-     *   [
-     *     'item_type' => 'food'|'combo',
-     *     'item_id' => int,
-     *     'quantity' => float|int,
-     *     'notes' => string|null,
-     *     'addons' => [addon_id, ...]
-     *   ]
-     * @param string $discountType 'fixed'|'percentage'
-     * @param float $discountValue
+     * @param  array  $cartItems  Array of items:
+     *                            [
+     *                            'item_type' => 'food'|'combo',
+     *                            'item_id' => int,
+     *                            'quantity' => float|int,
+     *                            'notes' => string|null,
+     *                            'addons' => [addon_id, ...]
+     *                            ]
+     * @param  string  $discountType  'fixed'|'percentage'
      * @return array Calculated breakdown
      */
     public function calculate(array $cartItems, string $discountType = 'fixed', float $discountValue = 0): array
@@ -50,7 +49,7 @@ class BillCalculationService
 
             if ($type === 'combo') {
                 $combo = Combo::find($itemId);
-                if (!$combo || !$combo->is_active) {
+                if (! $combo || ! $combo->is_active) {
                     continue;
                 }
                 $name = $combo->name;
@@ -60,7 +59,7 @@ class BillCalculationService
                 $addonsData = [];
             } else {
                 $food = Food::find($itemId);
-                if (!$food || !$food->is_active) {
+                if (! $food || ! $food->is_active) {
                     continue;
                 }
                 $name = $food->name;
@@ -71,7 +70,7 @@ class BillCalculationService
 
                 // Process Add-ons
                 $addonsData = [];
-                if (!empty($cartItem['addons']) && is_array($cartItem['addons'])) {
+                if (! empty($cartItem['addons']) && is_array($cartItem['addons'])) {
                     $addons = AddOn::whereIn('id', $cartItem['addons'])->where('is_active', true)->get();
                     foreach ($addons as $addon) {
                         $addonPrice = (float) $addon->price;

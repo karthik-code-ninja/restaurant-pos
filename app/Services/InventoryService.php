@@ -10,7 +10,6 @@ use App\Models\InventoryItem;
 use App\Models\InventoryMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class InventoryService
 {
@@ -67,7 +66,7 @@ class InventoryService
      */
     public function reverseStockForBill(Bill $bill, ?string $reason = null): bool
     {
-        if (!$bill->is_stock_deducted) {
+        if (! $bill->is_stock_deducted) {
             return true; // Nothing to reverse
         }
 

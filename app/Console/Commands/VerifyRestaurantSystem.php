@@ -2,30 +2,30 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AuditLog;
+use App\Models\AddOn;
 use App\Models\Bill;
-use App\Models\Category;
+use App\Models\BillItem;
+use App\Models\BillItemAddon;
 use App\Models\DayClosing;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Food;
 use App\Models\InventoryItem;
-use App\Models\InventoryMovement;
 use App\Models\RestaurantTable;
-use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\BillCalculationService;
 use App\Services\InventoryService;
 use App\Services\InvoiceNumberService;
 use App\Services\ReceiptPrintService;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VerifyRestaurantSystem extends Command
 {
     protected $signature = 'restaurant:verify';
+
     protected $description = 'Run complete end-to-end verification for all 13 modules of the Restaurant Billing & POS System';
 
     public function handle(
@@ -34,31 +34,31 @@ class VerifyRestaurantSystem extends Command
         InventoryService $inventoryService,
         ReceiptPrintService $receiptService
     ): int {
-        $this->info("=================================================");
-        $this->info("   RESTAURANT BILLING & POS SYSTEM VERIFICATION  ");
+        $this->info('=================================================');
+        $this->info('   RESTAURANT BILLING & POS SYSTEM VERIFICATION  ');
         $this->info("=================================================\n");
 
         $passed = 0;
         $failed = 0;
 
         // 1. Roles & Permissions Test
-        $this->info("1. Testing Roles & Permissions...");
+        $this->info('1. Testing Roles & Permissions...');
         $admin = User::where('email', 'admin@restaurant.com')->first();
         $cashier = User::where('email', 'cashier@restaurant.com')->first();
 
         if ($admin && $admin->hasRole('admin') && $admin->hasPermission('pos.billing') && $admin->hasPermission('settings.manage')) {
-            $this->line("  [PASS] Admin role and permissions verified.");
+            $this->line('  [PASS] Admin role and permissions verified.');
             $passed++;
         } else {
-            $this->error("  [FAIL] Admin role/permission check failed.");
+            $this->error('  [FAIL] Admin role/permission check failed.');
             $failed++;
         }
 
-        if ($cashier && $cashier->hasRole('cashier') && $cashier->hasPermission('pos.billing') && !$cashier->hasPermission('settings.manage')) {
-            $this->line("  [PASS] Cashier role and scoped permissions verified.");
+        if ($cashier && $cashier->hasRole('cashier') && $cashier->hasPermission('pos.billing') && ! $cashier->hasPermission('settings.manage')) {
+            $this->line('  [PASS] Cashier role and scoped permissions verified.');
             $passed++;
         } else {
-            $this->error("  [FAIL] Cashier permissions check failed.");
+            $this->error('  [FAIL] Cashier permissions check failed.');
             $failed++;
         }
 
@@ -70,7 +70,7 @@ class VerifyRestaurantSystem extends Command
             $this->line("  [PASS] Settings loaded: Name='{$appName}', GST={$gstRate}%");
             $passed++;
         } else {
-            $this->error("  [FAIL] Setting retrieval failed.");
+            $this->error('  [FAIL] Setting retrieval failed.');
             $failed++;
         }
 
@@ -79,20 +79,20 @@ class VerifyRestaurantSystem extends Command
         $paneer = Food::where('name', 'like', '%Paneer%')->first();
         $naan = Food::where('name', 'like', '%Naan%')->first();
 
-        $addon = \App\Models\AddOn::first();
+        $addon = AddOn::first();
         $calcItems = [
             [
                 'item_type' => 'food',
                 'item_id' => $paneer->id,
                 'quantity' => 2,
-                'addons' => $addon ? [$addon->id] : []
+                'addons' => $addon ? [$addon->id] : [],
             ],
             [
                 'item_type' => 'food',
                 'item_id' => $naan->id,
                 'quantity' => 3,
-                'addons' => []
-            ]
+                'addons' => [],
+            ],
         ];
 
         $result = $calculator->calculate(
@@ -121,7 +121,7 @@ class VerifyRestaurantSystem extends Command
         DB::beginTransaction();
         try {
             $table = RestaurantTable::where('status', 'available')->first();
-            $this->assertNotEmpty($table, "No available table found");
+            $this->assertNotEmpty($table, 'No available table found');
 
             // Open table
             $table->update(['status' => 'occupied']);
@@ -150,7 +150,7 @@ class VerifyRestaurantSystem extends Command
 
             // Create bill items
             foreach ($result['items'] as $itemData) {
-                $bItem = \App\Models\BillItem::create([
+                $bItem = BillItem::create([
                     'bill_id' => $bill->id,
                     'item_type' => $itemData['item_type'],
                     'item_id' => $itemData['item_id'],
@@ -168,7 +168,7 @@ class VerifyRestaurantSystem extends Command
                 ]);
 
                 foreach ($itemData['addons'] as $addon) {
-                    \App\Models\BillItemAddon::create([
+                    BillItemAddon::create([
                         'bill_item_id' => $bItem->id,
                         'add_on_id' => $addon['add_on_id'],
                         'name' => $addon['name'],
@@ -215,10 +215,10 @@ class VerifyRestaurantSystem extends Command
             $this->info("\n6. Testing Thermal Receipt Generation (80mm & 58mm)...");
             $receiptData = $receiptService->prepareReceipt($bill);
             if (($receiptData['bill']['invoice_number'] ?? '') === $bill->invoice_number && count($receiptData['items']) === 2) {
-                $this->line("  [PASS] Thermal receipt formatted cleanly with duplicate tracking and copies.");
+                $this->line('  [PASS] Thermal receipt formatted cleanly with duplicate tracking and copies.');
                 $passed++;
             } else {
-                $this->error("  [FAIL] Thermal receipt formatter output mismatch.");
+                $this->error('  [FAIL] Thermal receipt formatter output mismatch.');
                 $failed++;
             }
 
@@ -232,14 +232,14 @@ class VerifyRestaurantSystem extends Command
                 $this->line("  [PASS] Raw material stock accurately restored on cancellation ({$restoredStock}kg).");
                 $passed++;
             } else {
-                $this->error("  [FAIL] Stock restoration mismatch.");
+                $this->error('  [FAIL] Stock restoration mismatch.');
                 $failed++;
             }
 
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            $this->error("  [FAIL] Workflow exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            $this->error('  [FAIL] Workflow exception: '.$e->getMessage()."\n".$e->getTraceAsString());
             $failed++;
         }
 
@@ -254,7 +254,7 @@ class VerifyRestaurantSystem extends Command
                 'user_id' => $cashier->id,
                 'opened_at' => now(),
                 'opening_cash' => 1000.00,
-                'status' => 'open'
+                'status' => 'open',
             ]);
 
             // Add simulated cash expense
@@ -265,7 +265,7 @@ class VerifyRestaurantSystem extends Command
                 'date' => now()->toDateString(),
                 'payment_method' => 'cash',
                 'user_id' => $cashier->id,
-                'description' => 'Vegetable purchase'
+                'description' => 'Vegetable purchase',
             ]);
 
             // Add simulated completed bill with cash 300
@@ -276,12 +276,12 @@ class VerifyRestaurantSystem extends Command
                 'status' => 'completed',
                 'subtotal' => 300.00,
                 'grand_total' => 300.00,
-                'completed_at' => now()
+                'completed_at' => now(),
             ]);
             $simBill->payments()->create([
                 'payment_method' => 'cash',
                 'amount' => 300.00,
-                'received_by' => $cashier->id
+                'received_by' => $cashier->id,
             ]);
 
             // Closing calculation:
@@ -299,21 +299,21 @@ class VerifyRestaurantSystem extends Command
                 'actual_cash' => $actual,
                 'difference' => $variance,
                 'status' => 'closed',
-                'notes' => 'Perfect balance day closing'
+                'notes' => 'Perfect balance day closing',
             ]);
 
             if ($closing->difference == 0.00) {
-                $this->line("  [PASS] Day closing balanced cleanly: Float=1000, Cash Sales=300, Cash Expense=200, Drawer=1100, Variance=0.00");
+                $this->line('  [PASS] Day closing balanced cleanly: Float=1000, Cash Sales=300, Cash Expense=200, Drawer=1100, Variance=0.00');
                 $passed++;
             } else {
-                $this->error("  [FAIL] Day closing calculation error.");
+                $this->error('  [FAIL] Day closing calculation error.');
                 $failed++;
             }
 
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            $this->error("  [FAIL] Day closing exception: " . $e->getMessage());
+            $this->error('  [FAIL] Day closing exception: '.$e->getMessage());
             $failed++;
         }
 
@@ -355,24 +355,24 @@ class VerifyRestaurantSystem extends Command
         $routeSuccess = 0;
         foreach ($routesToTest as $name => $uri) {
             try {
-                $req = \Illuminate\Http\Request::create($uri, 'GET');
+                $req = Request::create($uri, 'GET');
                 $req->setUserResolver(fn () => $admin);
                 $res = app()->handle($req);
 
                 if ($res->getStatusCode() === 200) {
                     $routeSuccess++;
                 } else {
-                    $this->error("  [FAIL] Route '{$name}' ({$uri}) returned status: " . $res->getStatusCode());
+                    $this->error("  [FAIL] Route '{$name}' ({$uri}) returned status: ".$res->getStatusCode());
                     $failed++;
                 }
             } catch (\Throwable $e) {
-                $this->error("  [FAIL] Route '{$name}' ({$uri}) threw: " . $e->getMessage());
+                $this->error("  [FAIL] Route '{$name}' ({$uri}) threw: ".$e->getMessage());
                 $failed++;
             }
         }
 
         if ($routeSuccess === count($routesToTest)) {
-            $this->line("  [PASS] All " . count($routesToTest) . " module and report routes rendered with HTTP 200 OK!");
+            $this->line('  [PASS] All '.count($routesToTest).' module and report routes rendered with HTTP 200 OK!');
             $passed++;
         }
 

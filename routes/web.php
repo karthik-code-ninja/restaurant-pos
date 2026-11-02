@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AddOnController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
@@ -11,12 +12,19 @@ use App\Http\Controllers\DayClosingController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\InventoryReportController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PrintController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PurchaseReturnController;
+use App\Http\Controllers\QuickAccessController;
+use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TableController;
 use App\Http\Controllers\TaxController;
+use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -221,4 +229,69 @@ Route::middleware('auth')->group(function () {
     Route::get('/audit-logs', [BackupController::class, 'auditLogs'])
         ->middleware('permission:audit.view')
         ->name('audit.logs');
+
+    // 14. AccountsPro Quick Access ERP Dashboard & Shortcut Hub
+    Route::prefix('quick-access')->name('quick-access')->group(function () {
+        Route::get('/', [QuickAccessController::class, 'index']);
+        Route::get('/data', [QuickAccessController::class, 'dashboardData'])->name('.data');
+        Route::get('/profit', [QuickAccessController::class, 'todaysProfit'])->name('.profit');
+    });
+
+    // 15. Purchases & Purchase Register (j, c)
+    Route::resource('purchases', PurchaseController::class);
+
+    // 16. Purchase Orders (m)
+    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
+        Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+        Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
+        Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
+        Route::post('/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToPurchase'])->name('convert');
+    });
+
+    // 17. Purchase Returns / Debit Notes (i)
+    Route::prefix('purchase-returns')->name('purchase-returns.')->group(function () {
+        Route::get('/', [PurchaseReturnController::class, 'index'])->name('index');
+        Route::post('/', [PurchaseReturnController::class, 'store'])->name('store');
+        Route::get('/{purchaseReturn}', [PurchaseReturnController::class, 'show'])->name('show');
+    });
+
+    // 18. Accounting Masters & Financial Reports (b, d, e, f, g, 1, 2, 3, 4, 8)
+    Route::prefix('accounting')->name('accounting.')->group(function () {
+        Route::get('/ledgers', [AccountingController::class, 'ledgers'])->name('ledgers');
+        Route::post('/ledgers', [AccountingController::class, 'storeLedger'])->name('ledgers.store');
+        Route::get('/receipt', [AccountingController::class, 'receipt'])->name('receipt');
+        Route::post('/receipt', [AccountingController::class, 'storeReceipt'])->name('receipt.store');
+        Route::get('/payment', [AccountingController::class, 'payment'])->name('payment');
+        Route::post('/payment', [AccountingController::class, 'storePayment'])->name('payment.store');
+        Route::get('/receivables', [AccountingController::class, 'receivables'])->name('receivables');
+        Route::get('/payables', [AccountingController::class, 'payables'])->name('payables');
+        Route::get('/trial-balance', [AccountingController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('/ledger-statement', [AccountingController::class, 'ledgerStatement'])->name('ledger-statement');
+        Route::get('/voucher-register', [AccountingController::class, 'voucherRegister'])->name('voucher-register');
+        Route::get('/business-view', [AccountingController::class, 'businessView'])->name('business-view');
+        Route::get('/sales-register', [InventoryReportController::class, 'salesRegister'])->name('sales-register');
+    });
+
+    // 19. Inventory Reports & Barcode Print (6, 7, k, n, l)
+    Route::prefix('inventory-reports')->name('inventory-reports.')->group(function () {
+        Route::get('/stock-status', [InventoryReportController::class, 'stockStatus'])->name('stock-status');
+        Route::get('/stock-vouchers', [InventoryReportController::class, 'stockVouchers'])->name('stock-vouchers');
+        Route::post('/stock-vouchers', [InventoryReportController::class, 'storeStockVoucher'])->name('stock-vouchers.store');
+        Route::get('/movement-summary', [InventoryReportController::class, 'movementSummary'])->name('movement-summary');
+        Route::get('/barcode-print', [InventoryReportController::class, 'barcodePrint'])->name('barcode-print');
+        Route::get('/gst-reports', [InventoryReportController::class, 'gstReports'])->name('gst-reports');
+    });
+
+    // 20. Todos & Reminders (t, r, F9, F11, F12)
+    Route::prefix('todos')->name('todos.')->group(function () {
+        Route::post('/', [TodoController::class, 'store'])->name('store');
+        Route::post('/toggle/{todo?}', [TodoController::class, 'toggle'])->name('toggle');
+        Route::delete('/{todo}', [TodoController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('reminders')->name('reminders.')->group(function () {
+        Route::post('/', [ReminderController::class, 'store'])->name('store');
+        Route::post('/{reminder}/dismiss', [ReminderController::class, 'dismiss'])->name('dismiss');
+        Route::delete('/{reminder}', [ReminderController::class, 'destroy'])->name('destroy');
+    });
 });

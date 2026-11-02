@@ -22,7 +22,7 @@ class ComboController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
-                  ->orWhere('code', 'like', "%{$s}%");
+                    ->orWhere('code', 'like', "%{$s}%");
             });
         }
 
@@ -130,7 +130,7 @@ class ComboController extends Controller
 
     public function toggleStatus(Combo $combo): RedirectResponse
     {
-        $combo->update(['is_active' => !$combo->is_active]);
+        $combo->update(['is_active' => ! $combo->is_active]);
 
         $statusStr = $combo->is_active ? 'activated' : 'deactivated';
 

@@ -41,7 +41,7 @@ class InvoiceNumberService
             $exists = Bill::withTrashed()->where('invoice_number', $candidate)->exists();
             if ($exists) {
                 $maxId = (int) Bill::withTrashed()->max('id') + 1;
-                $candidate = "{$prefix}{$dateStr}-" . str_pad((string) ($startNum + $maxId), 4, '0', STR_PAD_LEFT);
+                $candidate = "{$prefix}{$dateStr}-".str_pad((string) ($startNum + $maxId), 4, '0', STR_PAD_LEFT);
             }
 
             return $candidate;

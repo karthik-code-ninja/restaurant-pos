@@ -114,7 +114,7 @@ class DayClosingController extends Controller
             action: 'cash_withdrawn',
             module: 'day_closing',
             referenceId: (string) $dayClosing->id,
-            description: "Cash withdrawal of ₹{$validated['amount']} recorded. Notes: " . ($validated['notes'] ?? 'None')
+            description: "Cash withdrawal of ₹{$validated['amount']} recorded. Notes: ".($validated['notes'] ?? 'None')
         );
 
         return back()->with('success', 'Cash withdrawal recorded successfully!');

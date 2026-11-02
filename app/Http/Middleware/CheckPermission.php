@@ -12,14 +12,15 @@ class CheckPermission
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json(['success' => false, 'message' => 'Unauthenticated.'], 401);
             }
+
             return redirect()->route('login');
         }
 
-        if (!$user->status) {
+        if (! $user->status) {
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -27,14 +28,15 @@ class CheckPermission
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json(['success' => false, 'message' => 'Account is inactive. Please contact administrator.'], 403);
             }
+
             return redirect()->route('login')->withErrors(['email' => 'Your account is inactive. Please contact administrator.']);
         }
 
-        if (!$user->hasPermission($permission)) {
+        if (! $user->hasPermission($permission)) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized action. You do not have the required permission: ' . $permission
+                    'message' => 'Unauthorized action. You do not have the required permission: '.$permission,
                 ], 403);
             }
 
@@ -45,8 +47,8 @@ class CheckPermission
 
             // If previous page is available and safe, redirect back with error message
             $previous = url()->previous();
-            if ($previous && $previous !== $request->fullUrl() && !str_contains($previous, '/login')) {
-                return redirect()->back()->with('error', 'You do not have permission to perform that action (' . $permission . ').');
+            if ($previous && $previous !== $request->fullUrl() && ! str_contains($previous, '/login')) {
+                return redirect()->back()->with('error', 'You do not have permission to perform that action ('.$permission.').');
             }
 
             return redirect()->route('pos.index')->with('error', 'You do not have permission to access that section.');

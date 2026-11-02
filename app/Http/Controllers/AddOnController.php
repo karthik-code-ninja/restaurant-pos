@@ -16,7 +16,7 @@ class AddOnController extends Controller
         $query = AddOn::query();
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('name', 'like', '%'.$request->search.'%');
         }
 
         if ($request->has('status') && $request->status !== '') {
@@ -95,7 +95,7 @@ class AddOnController extends Controller
 
     public function toggleStatus(AddOn $addon): RedirectResponse
     {
-        $addon->update(['is_active' => !$addon->is_active]);
+        $addon->update(['is_active' => ! $addon->is_active]);
 
         $statusStr = $addon->is_active ? 'activated' : 'deactivated';
 

@@ -12,16 +12,17 @@ class CheckRole
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
         }
 
-        if (!$user->status) {
+        if (! $user->status) {
             auth()->logout();
+
             return redirect()->route('login')->withErrors(['email' => 'Your account is inactive.']);
         }
 
-        if (!$user->hasRole($roles)) {
+        if (! $user->hasRole($roles)) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized role access.'], 403);
             }

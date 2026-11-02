@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\RestaurantTable;
+use App\Services\BillCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -120,7 +121,8 @@ class TableController extends Controller
         ]);
 
         if ($validated['status'] === 'available' && $table->activeBill) {
-            $msg = "Cannot set to available while active bill exists.";
+            $msg = 'Cannot set to available while active bill exists.';
+
             return $request->expectsJson() ? response()->json(['success' => false, 'message' => $msg], 422) : back()->with('error', $msg);
         }
 
@@ -160,13 +162,15 @@ class TableController extends Controller
                 ->latest()
                 ->first();
 
-            if (!$activeBill) {
+            if (! $activeBill) {
                 $msg = "No active bill found on table {$fromTable->table_number} to transfer.";
+
                 return $request->expectsJson() ? response()->json(['success' => false, 'message' => $msg], 422) : back()->with('error', $msg);
             }
 
             if ($toTable->status === 'occupied' && $toTable->activeBill) {
                 $msg = "Destination table {$toTable->table_number} is already occupied with an active bill.";
+
                 return $request->expectsJson() ? response()->json(['success' => false, 'message' => $msg], 422) : back()->with('error', $msg);
             }
 
@@ -187,7 +191,7 @@ class TableController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => "Successfully transferred bill from Table {$fromTable->table_number} to Table {$toTable->table_number}."
+                    'message' => "Successfully transferred bill from Table {$fromTable->table_number} to Table {$toTable->table_number}.",
                 ]);
             }
 
@@ -212,8 +216,9 @@ class TableController extends Controller
             $sourceBill = Bill::where('table_id', $sourceTable->id)->whereIn('status', ['pending', 'held'])->latest()->first();
             $targetBill = Bill::where('table_id', $targetTable->id)->whereIn('status', ['pending', 'held'])->latest()->first();
 
-            if (!$sourceBill || !$targetBill) {
-                $msg = "Both tables must have an active bill to merge.";
+            if (! $sourceBill || ! $targetBill) {
+                $msg = 'Both tables must have an active bill to merge.';
+
                 return $request->expectsJson() ? response()->json(['success' => false, 'message' => $msg], 422) : back()->with('error', $msg);
             }
 
@@ -223,7 +228,7 @@ class TableController extends Controller
             }
 
             // Recalculate target bill
-            $calcService = app(\App\Services\BillCalculationService::class);
+            $calcService = app(BillCalculationService::class);
             $cartItems = [];
             foreach ($targetBill->fresh()->items as $item) {
                 $addons = $item->addons->pluck('add_on_id')->toArray();

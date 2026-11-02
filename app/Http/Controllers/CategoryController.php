@@ -15,7 +15,7 @@ class CategoryController extends Controller
         $query = Category::withCount('foods');
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('name', 'like', '%'.$request->search.'%');
         }
 
         if ($request->has('status') && $request->status !== '') {
@@ -99,7 +99,7 @@ class CategoryController extends Controller
 
     public function toggleStatus(Category $category): RedirectResponse
     {
-        $category->update(['is_active' => !$category->is_active]);
+        $category->update(['is_active' => ! $category->is_active]);
 
         $statusStr = $category->is_active ? 'activated' : 'deactivated';
 

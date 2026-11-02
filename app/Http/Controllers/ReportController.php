@@ -7,11 +7,10 @@ use App\Models\BillItem;
 use App\Models\Category;
 use App\Models\DayClosing;
 use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\InventoryItem;
 use App\Models\Payment;
-use App\Models\RestaurantTable;
 use App\Models\Setting;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -91,7 +90,7 @@ class ReportController extends Controller
 
         $query = BillItem::whereHas('bill', function ($q) use ($startDate, $endDate) {
             $q->where('status', 'completed')
-              ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
+                ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
         });
 
         if ($request->filled('search')) {
@@ -109,10 +108,10 @@ class ReportController extends Controller
             DB::raw('SUM(tax_amount) as total_tax'),
             DB::raw('SUM(total) as total_amount')
         )
-        ->groupBy('food_code', 'item_name')
-        ->orderByDesc('total_qty')
-        ->paginate(15)
-        ->withQueryString();
+            ->groupBy('food_code', 'item_name')
+            ->orderByDesc('total_qty')
+            ->paginate(15)
+            ->withQueryString();
 
         $currency = Setting::get('currency_symbol', '₹');
 
@@ -131,7 +130,7 @@ class ReportController extends Controller
             ->join('bills', 'bill_items.bill_id', '=', 'bills.id')
             ->leftJoin('foods', function ($join) {
                 $join->on('bill_items.item_id', '=', 'foods.id')
-                     ->where('bill_items.item_type', '=', 'food');
+                    ->where('bill_items.item_type', '=', 'food');
             })
             ->leftJoin('categories', 'foods.category_id', '=', 'categories.id')
             ->where('bills.status', 'completed')
@@ -188,11 +187,11 @@ class ReportController extends Controller
 
         $report = Payment::whereHas('bill', function ($q) use ($startDate, $endDate) {
             $q->where('status', 'completed')
-              ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
+                ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
         })
-        ->select('payment_method', DB::raw('COUNT(id) as count'), DB::raw('SUM(amount) as total_amount'))
-        ->groupBy('payment_method')
-        ->get();
+            ->select('payment_method', DB::raw('COUNT(id) as count'), DB::raw('SUM(amount) as total_amount'))
+            ->groupBy('payment_method')
+            ->get();
 
         $currency = Setting::get('currency_symbol', '₹');
 
@@ -276,7 +275,7 @@ class ReportController extends Controller
         }
 
         $expenses = $query->latest('date')->paginate(15)->withQueryString();
-        $categories = \App\Models\ExpenseCategory::all();
+        $categories = ExpenseCategory::all();
         $totalAmount = (float) Expense::whereBetween('date', [$startDate, $endDate])->sum('amount');
         $currency = Setting::get('currency_symbol', '₹');
 

@@ -23,7 +23,7 @@ class FoodController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
-                  ->orWhere('code', 'like', "%{$s}%");
+                    ->orWhere('code', 'like', "%{$s}%");
             });
         }
 
@@ -84,10 +84,10 @@ class FoodController extends Controller
         $food = Food::create($validated);
 
         // Sync ingredients if provided
-        if (!empty($request->ingredients)) {
+        if (! empty($request->ingredients)) {
             $syncData = [];
             foreach ($request->ingredients as $ing) {
-                if (!empty($ing['id']) && !empty($ing['quantity'])) {
+                if (! empty($ing['id']) && ! empty($ing['quantity'])) {
                     $syncData[$ing['id']] = ['quantity' => $ing['quantity']];
                 }
             }
@@ -146,9 +146,9 @@ class FoodController extends Controller
 
         // Sync ingredients
         $syncData = [];
-        if (!empty($request->ingredients)) {
+        if (! empty($request->ingredients)) {
             foreach ($request->ingredients as $ing) {
-                if (!empty($ing['id']) && !empty($ing['quantity'])) {
+                if (! empty($ing['id']) && ! empty($ing['quantity'])) {
                     $syncData[$ing['id']] = ['quantity' => $ing['quantity']];
                 }
             }
@@ -184,7 +184,7 @@ class FoodController extends Controller
 
     public function toggleStatus(Food $food): RedirectResponse
     {
-        $food->update(['is_active' => !$food->is_active]);
+        $food->update(['is_active' => ! $food->is_active]);
 
         $statusStr = $food->is_active ? 'activated' : 'deactivated';
 

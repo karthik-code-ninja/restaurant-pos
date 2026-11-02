@@ -10,7 +10,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -23,8 +22,8 @@ class UserController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
-                  ->orWhere('email', 'like', "%{$s}%")
-                  ->orWhere('phone', 'like', "%{$s}%");
+                    ->orWhere('email', 'like', "%{$s}%")
+                    ->orWhere('phone', 'like', "%{$s}%");
             });
         }
 
@@ -79,7 +78,7 @@ class UserController extends Controller
             'status' => ['nullable', 'boolean'],
         ]);
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
@@ -108,7 +107,7 @@ class UserController extends Controller
             return back()->with('error', 'You cannot deactivate your own account.');
         }
 
-        $user->update(['status' => !$user->status]);
+        $user->update(['status' => ! $user->status]);
 
         $statusStr = $user->status ? 'activated' : 'deactivated';
 

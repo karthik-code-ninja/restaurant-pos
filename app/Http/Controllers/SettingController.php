@@ -7,7 +7,6 @@ use App\Models\Setting;
 use App\Services\PrinterProfileService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class SettingController extends Controller
@@ -85,7 +84,7 @@ class SettingController extends Controller
         // Booleans
         $booleans = [
             'auto_print', 'show_logo_on_receipt', 'print_restaurant_copy', 'print_customer_copy',
-            'show_qr_on_receipt', 'enable_cash', 'enable_upi', 'enable_card', 'enable_multimode'
+            'show_qr_on_receipt', 'enable_cash', 'enable_upi', 'enable_card', 'enable_multimode',
         ];
 
         foreach ($booleans as $b) {
@@ -94,7 +93,7 @@ class SettingController extends Controller
 
         // All other text/numeric values
         foreach ($validated as $key => $val) {
-            if ($key !== 'restaurant_logo' && $key !== 'qr_code_image' && !in_array($key, $booleans)) {
+            if ($key !== 'restaurant_logo' && $key !== 'qr_code_image' && ! in_array($key, $booleans)) {
                 Setting::set($key, (string) ($val ?? ''));
             }
         }
@@ -102,7 +101,7 @@ class SettingController extends Controller
         AuditLog::log(
             action: 'settings_updated',
             module: 'settings',
-            description: "System settings updated"
+            description: 'System settings updated'
         );
 
         return back()->with('success', 'Restaurant and application settings updated successfully!');

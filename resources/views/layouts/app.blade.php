@@ -109,6 +109,17 @@
 
             <!-- Navigation Links -->
             <nav class="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+                <!-- Quick Access ERP Hub -->
+                <div class="pb-1">
+                    <a href="{{ route('quick-access') }}" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-red-700 to-amber-700 text-white shadow-md shadow-red-700/20 hover:from-red-600 hover:to-amber-600 transition">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-gauge-high w-5 text-center"></i>
+                            <span>Quick Access ERP</span>
+                        </div>
+                        <span class="bg-white/20 text-xs px-2 py-0.5 rounded-full font-bold">F1</span>
+                    </a>
+                </div>
+
                 @if(auth()->user()->hasPermission('dashboard.view'))
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('dashboard') ? 'bg-orange-600 text-white shadow-sm' : 'hover:bg-slate-800 hover:text-white' }}">
                     <i class="fa-solid fa-chart-pie w-5 text-center"></i>
@@ -157,6 +168,14 @@
 
                 @if(auth()->user()->hasPermission('inventory.view'))
                 <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 pt-3 pb-1">Operations</div>
+                <a href="{{ route('purchases.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('purchases.*') ? 'bg-orange-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-cart-shopping w-5 text-center"></i>
+                    <span>Purchases (j)</span>
+                </a>
+                <a href="{{ route('accounting.ledgers') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('accounting.*') ? 'bg-orange-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
+                    <i class="fa-solid fa-book-bookmark w-5 text-center"></i>
+                    <span>Accounting & Ledgers</span>
+                </a>
                 @if(auth()->user()->hasPermission('customer.view'))
                 <a href="{{ route('customers.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('customers.*') ? 'bg-orange-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
                     <i class="fa-solid fa-address-book w-5 text-center"></i>
@@ -251,6 +270,11 @@
                 </div>
 
                 <div class="flex items-center gap-3">
+                    <a href="{{ route('quick-access') }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-gradient-to-r from-red-700 to-amber-700 text-white hover:from-red-800 hover:to-amber-800 shadow-sm transition">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <span>Quick Access (F1)</span>
+                    </a>
+
                     @if(auth()->user()->hasPermission('pos.billing'))
                     <a href="{{ route('pos.index') }}" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 shadow-sm transition">
                         <i class="fa-solid fa-cash-register"></i>
@@ -319,5 +343,13 @@
     </div>
 
     @stack('scripts')
+    <script>
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F1') {
+                e.preventDefault();
+                window.location = "{{ route('quick-access') }}";
+            }
+        });
+    </script>
 </body>
 </html>

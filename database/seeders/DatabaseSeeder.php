@@ -10,7 +10,6 @@ use App\Models\ExpenseCategory;
 use App\Models\Food;
 use App\Models\FoodIngredient;
 use App\Models\InventoryItem;
-use App\Models\InventoryMovement;
 use App\Models\Permission;
 use App\Models\RestaurantTable;
 use App\Models\Role;
@@ -83,18 +82,18 @@ class DatabaseSeeder extends Seeder
             'dashboard.view', 'food.view', 'food.create', 'food.edit',
             'table.view', 'table.manage', 'pos.billing', 'bill.edit', 'bill.cancel', 'bill.reprint',
             'inventory.view', 'inventory.manage', 'expense.view', 'expense.manage',
-            'dayclosing.view', 'dayclosing.manage', 'reports.view', 'audit.view'
+            'dayclosing.view', 'dayclosing.manage', 'reports.view', 'audit.view',
         ])->pluck('id');
         $managerRole->permissions()->sync($managerPerms);
 
         $cashierPerms = Permission::whereIn('slug', [
             'dashboard.view', 'food.view', 'table.view', 'pos.billing', 'bill.reprint',
-            'dayclosing.view', 'dayclosing.manage'
+            'dayclosing.view', 'dayclosing.manage',
         ])->pluck('id');
         $cashierRole->permissions()->sync($cashierPerms);
 
         $staffPerms = Permission::whereIn('slug', [
-            'dashboard.view', 'table.view', 'pos.billing'
+            'dashboard.view', 'table.view', 'pos.billing',
         ])->pluck('id');
         $staffRole->permissions()->sync($staffPerms);
 
@@ -152,7 +151,7 @@ class DatabaseSeeder extends Seeder
             'restaurant_email' => ['contact@Restro.in', 'restaurant', 'string'],
             'restaurant_gstin' => ['33AAAAA0000A1Z5', 'restaurant', 'string'],
             'restaurant_logo' => ['', 'restaurant', 'string'],
-            
+
             // Invoice
             'invoice_prefix' => ['INV-', 'invoice', 'string'],
             'invoice_start_number' => ['1001', 'invoice', 'integer'],

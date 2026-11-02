@@ -96,7 +96,7 @@ class TaxController extends Controller
             module: 'tax',
             oldValues: $old,
             newValues: $validated,
-            description: "Tax & GST settings updated"
+            description: 'Tax & GST settings updated'
         );
 
         return back()->with('success', 'Tax / GST settings updated successfully!');

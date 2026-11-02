@@ -63,6 +63,11 @@ class Food extends Model
             ->withTimestamps();
     }
 
+    public function getCurrentStockAttribute(): float
+    {
+        return (float) ($this->attributes['stock'] ?? 0);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

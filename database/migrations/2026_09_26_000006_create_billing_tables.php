@@ -17,35 +17,35 @@ return new class extends Migration
             $table->enum('status', ['draft', 'held', 'pending', 'completed', 'cancelled'])->default('pending');
             $table->string('customer_name')->nullable();
             $table->string('customer_phone', 20)->nullable();
-            
+
             // Financial calculations
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->enum('discount_type', ['fixed', 'percentage'])->default('fixed');
             $table->decimal('discount_value', 10, 2)->default(0);
             $table->decimal('discount_amount', 12, 2)->default(0);
-            
+
             $table->decimal('tax_total', 12, 2)->default(0);
             $table->decimal('cgst_total', 12, 2)->default(0);
             $table->decimal('sgst_total', 12, 2)->default(0);
             $table->decimal('igst_total', 12, 2)->default(0);
-            
+
             $table->decimal('rounding_difference', 8, 2)->default(0);
             $table->decimal('grand_total', 12, 2)->default(0);
-            
+
             $table->text('notes')->nullable();
             $table->text('cancellation_reason')->nullable();
             $table->foreignId('cancelled_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('cancelled_at')->nullable();
-            
+
             // Print & Audit Counters
             $table->unsignedInteger('printed_count')->default(0);
             $table->unsignedInteger('reprinted_count')->default(0);
             $table->unsignedInteger('duplicate_count')->default(0);
-            
+
             // Stock & Split/Merge references
             $table->boolean('is_stock_deducted')->default(false);
             $table->foreignId('parent_bill_id')->nullable()->constrained('bills')->nullOnDelete();
-            
+
             $table->timestamp('completed_at')->nullable();
             $table->softDeletes();
             $table->timestamps();

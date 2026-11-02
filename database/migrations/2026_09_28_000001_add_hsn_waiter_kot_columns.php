@@ -13,30 +13,30 @@ return new class extends Migration
     {
         // Add HSN code to foods table
         Schema::table('foods', function (Blueprint $table) {
-            if (!Schema::hasColumn('foods', 'hsn_code')) {
+            if (! Schema::hasColumn('foods', 'hsn_code')) {
                 $table->string('hsn_code', 20)->nullable()->after('code');
             }
         });
 
         // Add waiter and KOT tracking to bills table
         Schema::table('bills', function (Blueprint $table) {
-            if (!Schema::hasColumn('bills', 'waiter_id')) {
+            if (! Schema::hasColumn('bills', 'waiter_id')) {
                 $table->foreignId('waiter_id')->nullable()->after('cashier_id')->constrained('users')->nullOnDelete();
             }
-            if (!Schema::hasColumn('bills', 'waiter_name')) {
+            if (! Schema::hasColumn('bills', 'waiter_name')) {
                 $table->string('waiter_name', 100)->nullable()->after('waiter_id');
             }
-            if (!Schema::hasColumn('bills', 'kot_count')) {
+            if (! Schema::hasColumn('bills', 'kot_count')) {
                 $table->integer('kot_count')->default(0)->after('duplicate_count');
             }
         });
 
         // Add KOT printed qty and HSN to bill_items table
         Schema::table('bill_items', function (Blueprint $table) {
-            if (!Schema::hasColumn('bill_items', 'hsn_code')) {
+            if (! Schema::hasColumn('bill_items', 'hsn_code')) {
                 $table->string('hsn_code', 20)->nullable()->after('food_code');
             }
-            if (!Schema::hasColumn('bill_items', 'kot_printed_qty')) {
+            if (! Schema::hasColumn('bill_items', 'kot_printed_qty')) {
                 $table->decimal('kot_printed_qty', 12, 3)->default(0)->after('quantity');
             }
         });

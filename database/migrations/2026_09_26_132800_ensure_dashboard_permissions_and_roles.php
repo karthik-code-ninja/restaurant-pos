@@ -9,7 +9,7 @@ return new class extends Migration
     {
         // 1. Ensure 'dashboard.view' permission exists
         $perm = DB::table('permissions')->where('slug', 'dashboard.view')->first();
-        if (!$perm) {
+        if (! $perm) {
             $permId = DB::table('permissions')->insertGetId([
                 'slug' => 'dashboard.view',
                 'name' => 'Dashboard View',
@@ -29,7 +29,7 @@ return new class extends Migration
                 ->where('permission_id', $permId)
                 ->exists();
 
-            if (!$exists) {
+            if (! $exists) {
                 DB::table('role_permission')->insert([
                     'role_id' => $role->id,
                     'permission_id' => $permId,

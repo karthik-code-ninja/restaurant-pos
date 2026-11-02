@@ -14,7 +14,7 @@ return new class extends Migration
             $table->enum('shift_type', ['day', 'shift'])->default('day');
             $table->timestamp('opened_at')->useCurrent();
             $table->timestamp('closed_at')->nullable();
-            
+
             $table->decimal('opening_cash', 12, 2)->default(0);
             $table->decimal('cash_sales', 12, 2)->default(0);
             $table->decimal('cash_expenses', 12, 2)->default(0);
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->decimal('expected_cash', 12, 2)->default(0);
             $table->decimal('actual_cash', 12, 2)->nullable();
             $table->decimal('difference', 12, 2)->nullable(); // actual - expected
-            
+
             $table->enum('status', ['open', 'closed'])->default('open');
             $table->text('notes')->nullable();
             $table->foreignId('closed_by')->nullable()->constrained('users')->nullOnDelete();

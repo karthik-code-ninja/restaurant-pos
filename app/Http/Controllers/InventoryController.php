@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\InventoryItem;
 use App\Models\InventoryMovement;
-use App\Models\Setting;
 use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +25,7 @@ class InventoryController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
-                  ->orWhere('code', 'like', "%{$s}%");
+                    ->orWhere('code', 'like', "%{$s}%");
             });
         }
 
@@ -136,7 +135,7 @@ class InventoryController extends Controller
     public function destroy(InventoryItem $item): RedirectResponse
     {
         if ($item->foods()->count() > 0) {
-            return back()->with('error', "Cannot delete raw material that is mapped to food recipes. Remove ingredient mappings first.");
+            return back()->with('error', 'Cannot delete raw material that is mapped to food recipes. Remove ingredient mappings first.');
         }
 
         $name = $item->name;

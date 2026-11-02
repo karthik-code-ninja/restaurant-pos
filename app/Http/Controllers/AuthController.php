@@ -33,7 +33,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $user = Auth::user();
 
-            if (!$user->status) {
+            if (! $user->status) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('foods', function (Blueprint $table) {
-            if (!Schema::hasColumn('foods', 'cost_price')) {
+            if (! Schema::hasColumn('foods', 'cost_price')) {
                 $table->decimal('cost_price', 10, 2)->default(0.00)->after('price');
             }
         });
@@ -30,4 +30,3 @@ return new class extends Migration
         });
     }
 };
-
