@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Food;
 use App\Models\Purchase;
@@ -158,7 +159,10 @@ class QuickAccessAccountsTest extends TestCase
             'current_balance' => 0,
         ]);
 
+        $category = Category::firstOrCreate(['name' => 'Staples'], ['is_active' => true]);
+
         $food = Food::first() ?? Food::create([
+            'category_id' => $category->id,
             'name' => 'Basmati Test Rice',
             'code' => 'BTR-01',
             'price' => 200,
@@ -208,7 +212,22 @@ class QuickAccessAccountsTest extends TestCase
 
     public function test_purchase_orders_and_conversion(): void
     {
-        $supplier = Supplier::first();
+        $supplier = Supplier::create([
+            'name' => 'Dairy Test Vendor',
+            'phone' => '9888877771',
+        ]);
+
+        $category = Category::firstOrCreate(['name' => 'Dairy'], ['is_active' => true]);
+
+        $food = Food::create([
+            'category_id' => $category->id,
+            'name' => 'Test Cheese 1kg',
+            'code' => 'TC-01',
+            'price' => 450,
+            'cost_price' => 380,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
 
         $response = $this->actingAs($this->adminUser)
             ->post(route('purchase-orders.store'), [
@@ -219,7 +238,7 @@ class QuickAccessAccountsTest extends TestCase
                 'items' => [
                     [
                         'item_type' => 'food',
-                        'item_id' => 1,
+                        'item_id' => $food->id,
                         'item_name' => 'Test Cheese 1kg',
                         'quantity' => 3,
                         'unit' => 'Kg',
@@ -244,8 +263,23 @@ class QuickAccessAccountsTest extends TestCase
 
     public function test_purchase_return_debit_note_creation(): void
     {
-        $supplier = Supplier::first();
-        $food = Food::first();
+        $supplier = Supplier::create([
+            'name' => 'Return Test Vendor',
+            'phone' => '9888877772',
+        ]);
+
+        $category = Category::firstOrCreate(['name' => 'Fresh Supplies'], ['is_active' => true]);
+
+        $food = Food::create([
+            'category_id' => $category->id,
+            'name' => 'Return Test Food',
+            'code' => 'RTF-01',
+            'price' => 120,
+            'cost_price' => 90,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
         $initialStock = $food->stock;
 
         $response = $this->actingAs($this->adminUser)
