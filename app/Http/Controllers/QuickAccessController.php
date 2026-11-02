@@ -226,13 +226,7 @@ class QuickAccessController extends Controller
         $stockValue = (float) ($foodStockValue + $inventoryStockValue);
 
         // 7. Customer Balance (Total Outstanding Receivables)
-        $customerBalance = (float) Customer::sum('balance');
-        if ($customerBalance <= 0) {
-            // Also check unpaid bills
-            $customerBalance = (float) Bill::where('status', 'completed')
-                ->where('due_amount', '>', 0)
-                ->sum('due_amount');
-        }
+        $customerBalance = (float) Customer::where('balance', '>', 0)->sum('balance');
 
         return [
             'sales' => [
