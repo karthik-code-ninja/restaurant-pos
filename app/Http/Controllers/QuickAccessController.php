@@ -21,7 +21,7 @@ use Illuminate\View\View;
 class QuickAccessController extends Controller
 {
     /**
-     * Display the main AccountsPro Quick Access Dashboard.
+     * Display the main Quick Access Dashboard.
      */
     public function index(Request $request): View
     {
